@@ -3,6 +3,7 @@ import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity } from 'rea
 import { Canvas, useFrame } from '@react-three/fiber/native';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei/native';
 import * as THREE from 'three';
+import { ErrorBoundary } from './ErrorBoundary';
 
 interface BodyViewer3DAdvancedProps {
   muscles: any[];
@@ -313,40 +314,55 @@ export default function BodyViewer3DAdvanced({
     : muscles;
 
   return (
-    <View style={styles.container}>
-      <Canvas gl={{ antialias: true, powerPreference: 'high-performance' }}>
-        <Suspense fallback={null}>
-          <Scene
-            muscles={filteredMuscles}
-            onMusclePress={onMusclePress}
-            showBody={showBody}
-          />
-        </Suspense>
-      </Canvas>
+    <ErrorBoundary
+      fallback={
+        <View style={styles.container}>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+            <Text style={{ color: '#e74c3c', fontSize: 18, marginBottom: 8, fontWeight: 'bold' }}>
+              3D Rendering Error
+            </Text>
+            <Text style={{ color: '#888', fontSize: 14, textAlign: 'center', lineHeight: 22 }}>
+              Your device may not support advanced 3D rendering. Please use List View to browse anatomy data.
+            </Text>
+          </View>
+        </View>
+      }
+    >
+      <View style={styles.container}>
+        <Canvas gl={{ antialias: false, powerPreference: 'default' }}>
+          <Suspense fallback={null}>
+            <Scene
+              muscles={filteredMuscles}
+              onMusclePress={onMusclePress}
+              showBody={showBody}
+            />
+          </Suspense>
+        </Canvas>
 
-      <View style={styles.controls}>
-        <TouchableOpacity
-          style={styles.controlButton}
-          onPress={() => setShowBody(!showBody)}
-        >
-          <Text style={styles.controlButtonText}>
-            {showBody ? 'Hide Body' : 'Show Body'}
+        <View style={styles.controls}>
+          <TouchableOpacity
+            style={styles.controlButton}
+            onPress={() => setShowBody(!showBody)}
+          >
+            <Text style={styles.controlButtonText}>
+              {showBody ? 'Hide Body' : 'Show Body'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.info}>
+          <Text style={styles.infoText}>
+            🔴 Tap red markers to view muscle details
           </Text>
-        </TouchableOpacity>
+          <Text style={styles.infoText}>
+            Drag to rotate • Pinch to zoom • Two fingers to pan
+          </Text>
+          <Text style={styles.infoText}>
+            {filteredMuscles.length} muscles • Layer {layer || 1}
+          </Text>
+        </View>
       </View>
-
-      <View style={styles.info}>
-        <Text style={styles.infoText}>
-          🔴 Tap red markers to view muscle details
-        </Text>
-        <Text style={styles.infoText}>
-          Drag to rotate • Pinch to zoom • Two fingers to pan
-        </Text>
-        <Text style={styles.infoText}>
-          {filteredMuscles.length} muscles • Layer {layer || 1}
-        </Text>
-      </View>
-    </View>
+    </ErrorBoundary>
   );
 }
 

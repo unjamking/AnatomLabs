@@ -120,16 +120,24 @@ export interface GenerateWorkoutRequest {
 
 // Nutrition Types
 export interface NutritionPlan {
-  id: string;
-  userId: string;
+  id?: string;
+  userId?: string;
   bmr: number;
   tdee: number;
   targetCalories: number;
   macros: MacroTargets;
-  goal: string;
-  activityLevel: string;
-  calculation: NutritionCalculation;
-  createdAt: string;
+  goal?: string;
+  activityLevel?: string;
+  calculation?: NutritionCalculation;
+  explanation?: NutritionExplanation;
+  createdAt?: string;
+}
+
+export interface NutritionExplanation {
+  bmrFormula: string;
+  tdeeCalculation: string;
+  calorieAdjustment: string;
+  macroRationale: string;
 }
 
 export interface MacroTargets {
@@ -170,6 +178,106 @@ export interface FoodLog {
   servings: number;
   mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
   date: string;
+  totalCalories?: number;
+  totalProtein?: number;
+  totalCarbs?: number;
+  totalFat?: number;
+}
+
+// Nutrition Tracking Types
+export interface DailyNutritionSummary {
+  date: string;
+  meals: {
+    breakfast: FoodLog[];
+    lunch: FoodLog[];
+    dinner: FoodLog[];
+    snack: FoodLog[];
+  };
+  totals: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+  remaining: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  } | null;
+  logCount: number;
+}
+
+export interface WeightLog {
+  id: string;
+  userId: string;
+  weight: number;
+  date: string;
+  note?: string;
+}
+
+export interface WeightTrend {
+  current: number | null;
+  average7Day: number | null;
+  average30Day: number | null;
+  trend: 'up' | 'down' | 'stable' | 'insufficient_data';
+  change: number | null;
+}
+
+export interface UserStreak {
+  currentStreak: number;
+  longestStreak: number;
+  totalDaysLogged: number;
+  lastLoggedDate: string | null;
+}
+
+export interface StreakUpdate extends UserStreak {
+  badge?: string;
+}
+
+export interface FoodSuggestion {
+  id: string;
+  name: string;
+  category: string | null;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  servingSize: number;
+  servingUnit: string;
+  score: number;
+  reason: string;
+}
+
+export interface SuggestionsResponse {
+  remaining: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+  suggestions: FoodSuggestion[];
+}
+
+export interface RecentFoodsResponse {
+  recent: (Food & { lastLogged: string; defaultServings: number })[];
+  frequent: (Food & { logCount: number })[];
+}
+
+export interface MealPresetItem {
+  id: string;
+  mealPresetId: string;
+  foodId: string;
+  servings: number;
+  food: Food;
+}
+
+export interface MealPreset {
+  id: string;
+  userId: string;
+  name: string;
+  createdAt: string;
+  items: MealPresetItem[];
 }
 
 // Activity & Tracking Types

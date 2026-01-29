@@ -93,7 +93,7 @@ export default function ReportsScreen() {
         <ScrollView
           style={styles.content}
           refreshControl={
-            <RefreshControl refreshing={Boolean(isRefreshing)} onRefresh={onRefresh} />
+            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
           }
         >
           {reportType === 'daily' && report ? (

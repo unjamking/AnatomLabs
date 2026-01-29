@@ -24,7 +24,11 @@ async function main() {
   await prisma.workoutExercise.deleteMany();
   await prisma.workout.deleteMany();
   await prisma.workoutPlan.deleteMany();
+  await prisma.mealPresetItem.deleteMany();
+  await prisma.mealPreset.deleteMany();
   await prisma.nutritionLog.deleteMany();
+  await prisma.weightLog.deleteMany();
+  await prisma.userStreak.deleteMany();
   await prisma.activityLog.deleteMany();
   await prisma.muscleUsageLog.deleteMany();
   await prisma.report.deleteMany();
@@ -100,205 +104,28 @@ async function main() {
   }
   console.log(`✅ Created ${exercisesData.length} exercises with muscle activation data\n`);
 
-  // 3. Seed foods
+  // 3. Load and seed foods from JSON file
   console.log('🍎 Seeding foods...');
-  const foods = [
-    {
-      name: 'Chicken Breast (Grilled)',
-      brand: null,
-      servingSize: 100,
-      servingUnit: 'g',
-      calories: 165,
-      protein: 31,
-      carbs: 0,
-      fat: 3.6,
-      fiber: 0,
-      sugar: 0,
-      vitaminA: 21,
-      vitaminC: 0,
-      vitaminD: 0.1,
-      calcium: 15,
-      iron: 1,
-      potassium: 256,
-      sodium: 74
-    },
-    {
-      name: 'Brown Rice (Cooked)',
-      brand: null,
-      servingSize: 100,
-      servingUnit: 'g',
-      calories: 112,
-      protein: 2.6,
-      carbs: 24,
-      fat: 0.9,
-      fiber: 1.8,
-      sugar: 0.4,
-      vitaminA: 0,
-      vitaminC: 0,
-      vitaminD: 0,
-      calcium: 10,
-      iron: 0.4,
-      potassium: 43,
-      sodium: 1
-    },
-    {
-      name: 'Broccoli (Steamed)',
-      brand: null,
-      servingSize: 100,
-      servingUnit: 'g',
-      calories: 35,
-      protein: 2.4,
-      carbs: 7,
-      fat: 0.4,
-      fiber: 3.3,
-      sugar: 1.4,
-      vitaminA: 623,
-      vitaminC: 64.9,
-      vitaminD: 0,
-      calcium: 47,
-      iron: 0.7,
-      potassium: 293,
-      sodium: 33
-    },
-    {
-      name: 'Salmon (Grilled)',
-      brand: null,
-      servingSize: 100,
-      servingUnit: 'g',
-      calories: 206,
-      protein: 22,
-      carbs: 0,
-      fat: 13,
-      fiber: 0,
-      sugar: 0,
-      vitaminA: 50,
-      vitaminC: 0,
-      vitaminD: 11,
-      calcium: 15,
-      iron: 0.5,
-      potassium: 363,
-      sodium: 59
-    },
-    {
-      name: 'Eggs (Whole, Boiled)',
-      brand: null,
-      servingSize: 100,
-      servingUnit: 'g',
-      calories: 155,
-      protein: 13,
-      carbs: 1.1,
-      fat: 11,
-      fiber: 0,
-      sugar: 1.1,
-      vitaminA: 540,
-      vitaminC: 0,
-      vitaminD: 2.2,
-      calcium: 56,
-      iron: 1.8,
-      potassium: 126,
-      sodium: 124
-    },
-    {
-      name: 'Sweet Potato (Baked)',
-      brand: null,
-      servingSize: 100,
-      servingUnit: 'g',
-      calories: 90,
-      protein: 2,
-      carbs: 21,
-      fat: 0.2,
-      fiber: 3.3,
-      sugar: 6.5,
-      vitaminA: 19218,
-      vitaminC: 19.6,
-      vitaminD: 0,
-      calcium: 38,
-      iron: 0.7,
-      potassium: 475,
-      sodium: 36
-    },
-    {
-      name: 'Greek Yogurt (Plain)',
-      brand: 'Generic',
-      servingSize: 100,
-      servingUnit: 'g',
-      calories: 59,
-      protein: 10,
-      carbs: 3.6,
-      fat: 0.4,
-      fiber: 0,
-      sugar: 3.2,
-      vitaminA: 0,
-      vitaminC: 0.8,
-      vitaminD: 0,
-      calcium: 110,
-      iron: 0,
-      potassium: 141,
-      sodium: 36
-    },
-    {
-      name: 'Almonds (Raw)',
-      brand: null,
-      servingSize: 28,
-      servingUnit: 'g',
-      calories: 161,
-      protein: 6,
-      carbs: 6,
-      fat: 14,
-      fiber: 3.5,
-      sugar: 1.2,
-      vitaminA: 1,
-      vitaminC: 0,
-      vitaminD: 0,
-      calcium: 76,
-      iron: 1,
-      potassium: 208,
-      sodium: 0
-    },
-    {
-      name: 'Banana (Medium)',
-      brand: null,
-      servingSize: 118,
-      servingUnit: 'g',
-      calories: 105,
-      protein: 1.3,
-      carbs: 27,
-      fat: 0.4,
-      fiber: 3.1,
-      sugar: 14,
-      vitaminA: 76,
-      vitaminC: 10.3,
-      vitaminD: 0,
-      calcium: 6,
-      iron: 0.3,
-      potassium: 422,
-      sodium: 1
-    },
-    {
-      name: 'Oatmeal (Cooked)',
-      brand: null,
-      servingSize: 100,
-      servingUnit: 'g',
-      calories: 71,
-      protein: 2.5,
-      carbs: 12,
-      fat: 1.5,
-      fiber: 1.7,
-      sugar: 0.3,
-      vitaminA: 0,
-      vitaminC: 0,
-      vitaminD: 0,
-      calcium: 9,
-      iron: 0.9,
-      potassium: 70,
-      sodium: 4
-    }
-  ];
+  const foodsPath = path.join(__dirname, '../../../tools/sample-data/foods.json');
+  const foodsData = JSON.parse(fs.readFileSync(foodsPath, 'utf-8'));
 
-  for (const food of foods) {
-    await prisma.food.create({ data: food });
+  for (const food of foodsData) {
+    await prisma.food.create({
+      data: {
+        name: food.name,
+        category: food.category,
+        servingSize: food.servingSize,
+        servingUnit: food.servingUnit,
+        calories: food.calories,
+        protein: food.protein,
+        carbs: food.carbs,
+        fat: food.fat,
+        fiber: food.fiber || null,
+        sugar: food.sugar || null
+      }
+    });
   }
-  console.log(`✅ Created ${foods.length} foods\n`);
+  console.log(`✅ Created ${foodsData.length} foods\n`);
 
   // 4. Create sample user
   console.log('👤 Creating sample user...');
@@ -339,7 +166,7 @@ async function main() {
   console.log('📝 Summary:');
   console.log(`   - Body Parts: ${bodyPartsData.length} (muscles, organs)`);
   console.log(`   - Exercises: ${exercisesData.length} (with biomechanics)`);
-  console.log(`   - Foods: ${foods.length}`);
+  console.log(`   - Foods: ${foodsData.length}`);
   console.log(`   - Demo User: demo@anatomlabs.com`);
   console.log('\n🚀 Ready to start the server!\n');
 }

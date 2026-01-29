@@ -38,6 +38,9 @@ model User {
   activityLogs    ActivityLog[]
   reports         Report[]
   muscleUsageLogs MuscleUsageLog[]
+  weightLogs      WeightLog[]
+  mealPresets     MealPreset[]
+  streak          UserStreak?
 
   @@map("users")
 }
@@ -204,7 +207,7 @@ model Food {
   // Serving info
   servingSize Float    // in grams
   servingUnit String   // "g", "ml", "piece", etc.
-  
+
   // Macros (per serving)
   calories    Float
   protein     Float    // g
@@ -212,7 +215,7 @@ model Food {
   fat         Float    // g
   fiber       Float?   // g
   sugar       Float?   // g
-  
+
   // Micros (per serving, in mg or mcg)
   vitaminA    Float?
   vitaminC    Float?
@@ -221,12 +224,13 @@ model Food {
   iron        Float?
   potassium   Float?
   sodium      Float?
-  
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
-  nutritionLogs NutritionLog[]
-  
+
+  nutritionLogs   NutritionLog[]
+  mealPresetItems MealPresetItem[]
+
   @@map("foods")
 }
 
@@ -337,4 +341,55 @@ model Report {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("reports")
+}
+
+// ========== NUTRITION TRACKING EXTENSIONS ==========
+
+model WeightLog {
+  id      String   @id @default(uuid())
+  userId  String
+  weight  Float    // kg
+  date    DateTime @default(now())
+  note    String?
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("weight_logs")
+}
+
+model MealPreset {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     MealPresetItem[]
+
+  @@map("meal_presets")
+}
+
+model MealPresetItem {
+  id           String     @id @default(uuid())
+  mealPresetId String
+  foodId       String
+  servings     Float
+
+  mealPreset   MealPreset @relation(fields: [mealPresetId], references: [id], onDelete: Cascade)
+  food         Food       @relation(fields: [foodId], references: [id], onDelete: Cascade)
+
+  @@map("meal_preset_items")
+}
+
+model UserStreak {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  currentStreak   Int       @default(0)
+  longestStreak   Int       @default(0)
+  lastLoggedDate  DateTime?
+  totalDaysLogged Int       @default(0)
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_streaks")
 }

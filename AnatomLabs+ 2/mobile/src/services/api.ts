@@ -15,13 +15,23 @@ import {
   ActivityLog,
   ApiResponse,
   ApiError,
+  Food,
+  FoodLog,
+  DailyNutritionSummary,
+  WeightLog,
+  WeightTrend,
+  UserStreak,
+  StreakUpdate,
+  SuggestionsResponse,
+  RecentFoodsResponse,
+  MealPreset,
 } from '../types';
 
 // IMPORTANT: Update this with your computer's IP address
 // Find it using: ipconfig (Windows) or ifconfig (Mac/Linux)
 
 // Configuration: Update your IP here
-const YOUR_IP = '172.20.10.3';
+const YOUR_IP = '192.168.1.18';
 
 // Automatic URL selection based on platform
 import { Platform } from 'react-native';
@@ -233,11 +243,107 @@ class ApiService {
     });
   }
 
-  async searchFood(query: string): Promise<any[]> {
-    const response = await this.api.get<ApiResponse<any[]>>('/nutrition/search', {
-      params: { q: query },
+  async searchFood(query: string): Promise<Food[]> {
+    const response = await this.api.get<Food[]>('/nutrition/foods', {
+      params: { search: query },
     });
-    return response.data.data;
+    return response.data;
+  }
+
+  async getFoods(category?: string): Promise<Food[]> {
+    const params = category ? { category } : {};
+    const response = await this.api.get<Food[]>('/nutrition/foods', { params });
+    return response.data;
+  }
+
+  async getTodayLogs(): Promise<DailyNutritionSummary> {
+    const response = await this.api.get<DailyNutritionSummary>('/nutrition/logs/today');
+    return response.data;
+  }
+
+  async updateFoodLog(logId: string, data: { servings?: number; mealType?: string }): Promise<FoodLog> {
+    const response = await this.api.put<{ message: string; log: FoodLog }>(`/nutrition/logs/${logId}`, data);
+    return response.data.log;
+  }
+
+  async deleteFoodLog(logId: string): Promise<void> {
+    await this.api.delete(`/nutrition/logs/${logId}`);
+  }
+
+  async logWeight(weight: number, note?: string): Promise<WeightLog> {
+    const response = await this.api.post<{ message: string; weightLog: WeightLog }>('/nutrition/weight', {
+      weight,
+      note,
+    });
+    return response.data.weightLog;
+  }
+
+  async getWeightHistory(days?: number): Promise<WeightLog[]> {
+    const params = days ? { days } : {};
+    const response = await this.api.get<WeightLog[]>('/nutrition/weight', { params });
+    return response.data;
+  }
+
+  async getWeightTrend(days?: number): Promise<WeightTrend> {
+    const params = days ? { days } : {};
+    const response = await this.api.get<WeightTrend>('/nutrition/weight/trend', { params });
+    return response.data;
+  }
+
+  async getSuggestions(): Promise<SuggestionsResponse> {
+    const response = await this.api.get<SuggestionsResponse>('/nutrition/suggestions');
+    return response.data;
+  }
+
+  async getRecentFoods(limit?: number): Promise<RecentFoodsResponse> {
+    const params = limit ? { limit } : {};
+    const response = await this.api.get<RecentFoodsResponse>('/nutrition/recent', { params });
+    return response.data;
+  }
+
+  async getStreak(): Promise<UserStreak> {
+    const response = await this.api.get<UserStreak>('/nutrition/streak');
+    return response.data;
+  }
+
+  async getMealPresets(): Promise<MealPreset[]> {
+    const response = await this.api.get<MealPreset[]>('/nutrition/presets');
+    return response.data;
+  }
+
+  async createMealPreset(name: string, items: { foodId: string; servings: number }[]): Promise<MealPreset> {
+    const response = await this.api.post<{ message: string; preset: MealPreset }>('/nutrition/presets', {
+      name,
+      items,
+    });
+    return response.data.preset;
+  }
+
+  async deleteMealPreset(presetId: string): Promise<void> {
+    await this.api.delete(`/nutrition/presets/${presetId}`);
+  }
+
+  async logMealPreset(presetId: string, mealType: string): Promise<{ logs: FoodLog[]; streak: StreakUpdate }> {
+    const response = await this.api.post<{ message: string; logs: FoodLog[]; streak: StreakUpdate }>(
+      `/nutrition/presets/${presetId}/log`,
+      { mealType }
+    );
+    return { logs: response.data.logs, streak: response.data.streak };
+  }
+
+  async logFoodWithStreak(foodData: {
+    foodId: string;
+    servings: number;
+    mealType: string;
+  }): Promise<{ log: FoodLog; streak: StreakUpdate }> {
+    const response = await this.api.post<{ message: string; log: FoodLog; streak: StreakUpdate }>(
+      '/nutrition/log',
+      {
+        ...foodData,
+        date: new Date().toISOString(),
+      }
+    );
+    return { log: response.data.log, streak: response.data.streak };
   }
 
   // Activity

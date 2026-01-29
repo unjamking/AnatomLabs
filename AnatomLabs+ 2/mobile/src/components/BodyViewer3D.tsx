@@ -3,14 +3,13 @@ import { View, StyleSheet, Text, ActivityIndicator } from 'react-native';
 import { Canvas } from '@react-three/fiber/native';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei/native';
 import * as THREE from 'three';
+import { ErrorBoundary } from './ErrorBoundary';
 
 interface BodyViewer3DProps {
   muscles: any[];
   onMusclePress?: (muscleId: string) => void;
   layer?: number;
 }
-
-// Muscle sphere component
 function MuscleSphere({
   muscle,
   onPress
@@ -109,21 +108,36 @@ export default function BodyViewer3D({ muscles, onMusclePress, layer }: BodyView
     : muscles;
 
   return (
-    <View style={styles.container}>
-      <Canvas>
-        <Suspense fallback={null}>
-          <Scene muscles={filteredMuscles} onMusclePress={onMusclePress} />
-        </Suspense>
-      </Canvas>
-      <View style={styles.info}>
-        <Text style={styles.infoText}>
-          Drag to rotate • Pinch to zoom
-        </Text>
-        <Text style={styles.infoText}>
-          {filteredMuscles.length} muscles shown
-        </Text>
+    <ErrorBoundary
+      fallback={
+        <View style={styles.container}>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ color: '#e74c3c', fontSize: 18, marginBottom: 8 }}>
+              3D Viewer Error
+            </Text>
+            <Text style={{ color: '#888', fontSize: 14, textAlign: 'center', paddingHorizontal: 20 }}>
+              Unable to render 3D content. Try using List View instead.
+            </Text>
+          </View>
+        </View>
+      }
+    >
+      <View style={styles.container}>
+        <Canvas>
+          <Suspense fallback={null}>
+            <Scene muscles={filteredMuscles} onMusclePress={onMusclePress} />
+          </Suspense>
+        </Canvas>
+        <View style={styles.info}>
+          <Text style={styles.infoText}>
+            Drag to rotate • Pinch to zoom
+          </Text>
+          <Text style={styles.infoText}>
+            {filteredMuscles.length} muscles shown
+          </Text>
+        </View>
       </View>
-    </View>
+    </ErrorBoundary>
   );
 }
 

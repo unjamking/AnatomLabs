@@ -52,7 +52,7 @@ export default function HomeScreen({ navigation }: any) {
     <ScrollView
       style={styles.container}
       refreshControl={
-        <RefreshControl refreshing={Boolean(isRefreshing)} onRefresh={onRefresh} />
+        <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
       }
     >
       <View style={styles.header}>
