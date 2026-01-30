@@ -1,16 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withDelay,
+  withTiming,
+  withSequence,
+  interpolate,
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import {
+  AnimatedButton,
+  FadeIn,
+  SlideIn,
+  ScaleIn,
+  useHaptics,
+  COLORS,
+  SPRING_CONFIG,
+} from '../../components/animations';
 
 interface Props {
   navigation: any;
@@ -21,17 +40,36 @@ export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { trigger } = useHaptics();
+
+  // Animation values
+  const logoScale = useSharedValue(0.5);
+  const logoOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    logoOpacity.value = withDelay(100, withTiming(1, { duration: 500 }));
+    logoScale.value = withDelay(100, withSpring(1, SPRING_CONFIG.bouncy));
+  }, []);
+
+  const logoStyle = useAnimatedStyle(() => ({
+    opacity: logoOpacity.value,
+    transform: [{ scale: logoScale.value }],
+  }));
 
   const handleLogin = async () => {
     if (!email || !password) {
+      trigger('warning');
       Alert.alert('Error', 'Please enter email and password');
       return;
     }
 
     setIsLoading(true);
+    trigger('medium');
     try {
       await login({ email, password });
+      trigger('success');
     } catch (error: any) {
+      trigger('error');
       Alert.alert('Login Failed', error.message || 'Invalid credentials');
     } finally {
       setIsLoading(false);
@@ -39,6 +77,7 @@ export default function LoginScreen({ navigation }: Props) {
   };
 
   const useDemoAccount = () => {
+    trigger('light');
     setEmail('demo@anatomlabs.com');
     setPassword('password123');
   };
@@ -48,70 +87,112 @@ export default function LoginScreen({ navigation }: Props) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <LinearGradient
+        colors={['#0a0a0a', '#1a1a1a', '#0a0a0a']}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+
       <View style={styles.content}>
-        <View style={styles.header}>
+        <Animated.View style={[styles.header, logoStyle]}>
+          <View style={styles.logoContainer}>
+            <LinearGradient
+              colors={['#e74c3c', '#c0392b']}
+              style={styles.logoGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Ionicons name="fitness" size={48} color="#fff" />
+            </LinearGradient>
+          </View>
           <Text style={styles.title}>AnatomLabs+</Text>
           <Text style={styles.subtitle}>Human Performance Science</Text>
-        </View>
+        </Animated.View>
 
         <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#666"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            editable={!isLoading}
-          />
+          <SlideIn direction="left" delay={200}>
+            <View style={styles.inputContainer}>
+              <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Email"
+                placeholderTextColor={COLORS.textTertiary}
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                editable={!isLoading}
+              />
+            </View>
+          </SlideIn>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#666"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={true}
-            editable={!isLoading}
-          />
+          <SlideIn direction="left" delay={300}>
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor={COLORS.textTertiary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={true}
+                editable={!isLoading}
+              />
+            </View>
+          </SlideIn>
 
-          <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
-            onPress={handleLogin}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Login</Text>
-            )}
-          </TouchableOpacity>
+          <SlideIn direction="bottom" delay={400}>
+            <AnimatedButton
+              title={isLoading ? undefined : "Login"}
+              variant="primary"
+              size="large"
+              onPress={handleLogin}
+              disabled={isLoading}
+              style={styles.loginButton}
+              hapticType="medium"
+            >
+              {isLoading && <ActivityIndicator color="#fff" />}
+            </AnimatedButton>
+          </SlideIn>
 
-          <TouchableOpacity
-            style={styles.demoButton}
-            onPress={useDemoAccount}
-            disabled={isLoading}
-          >
-            <Text style={styles.demoButtonText}>Use Demo Account</Text>
-          </TouchableOpacity>
+          <FadeIn delay={500}>
+            <AnimatedButton
+              title="Use Demo Account"
+              variant="ghost"
+              size="medium"
+              onPress={useDemoAccount}
+              disabled={isLoading}
+              style={styles.demoButton}
+              hapticType="light"
+            />
+          </FadeIn>
         </View>
 
-        <TouchableOpacity
-          style={styles.registerLink}
-          onPress={() => navigation.navigate('Register')}
-        >
-          <Text style={styles.registerLinkText}>
-            Don't have an account? <Text style={styles.registerLinkBold}>Sign Up</Text>
-          </Text>
-        </TouchableOpacity>
+        <FadeIn delay={600}>
+          <AnimatedButton
+            variant="ghost"
+            size="medium"
+            onPress={() => {
+              trigger('light');
+              navigation.navigate('Register');
+            }}
+            style={styles.registerLink}
+          >
+            <Text style={styles.registerLinkText}>
+              Don't have an account? <Text style={styles.registerLinkBold}>Sign Up</Text>
+            </Text>
+          </AnimatedButton>
+        </FadeIn>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Educational Platform</Text>
-          <Text style={styles.footerSubtext}>
-            Science & Technology Competition Project
-          </Text>
-        </View>
+        <FadeIn delay={700}>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Educational Platform</Text>
+            <Text style={styles.footerSubtext}>
+              Science & Technology Competition Project
+            </Text>
+          </View>
+        </FadeIn>
       </View>
     </KeyboardAvoidingView>
   );
@@ -120,7 +201,7 @@ export default function LoginScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: COLORS.background,
   },
   content: {
     flex: 1,
@@ -131,10 +212,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 50,
   },
+  logoContainer: {
+    marginBottom: 20,
+  },
+  logoGradient: {
+    width: 90,
+    height: 90,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 10,
+  },
   title: {
     fontSize: 42,
     fontWeight: 'bold',
-    color: '#e74c3c',
+    color: COLORS.primary,
     marginBottom: 8,
   },
   subtitle: {
@@ -145,45 +241,36 @@ const styles = StyleSheet.create({
   form: {
     marginBottom: 40,
   },
-  input: {
-    backgroundColor: '#1a1a1a',
-    borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: '#fff',
-    marginBottom: 16,
-  },
-  button: {
-    backgroundColor: '#e74c3c',
-    borderRadius: 12,
-    padding: 16,
+  inputContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: COLORS.cardBackground,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 16,
+    fontSize: 16,
+    color: COLORS.text,
+  },
+  loginButton: {
     marginTop: 10,
   },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
   demoButton: {
-    marginTop: 16,
-    padding: 12,
-    alignItems: 'center',
-  },
-  demoButtonText: {
-    color: '#e74c3c',
-    fontSize: 16,
+    marginTop: 8,
   },
   footer: {
     alignItems: 'center',
   },
   footerText: {
-    color: '#666',
+    color: COLORS.textTertiary,
     fontSize: 14,
     marginBottom: 4,
   },
@@ -193,14 +280,15 @@ const styles = StyleSheet.create({
   },
   registerLink: {
     marginTop: 20,
+    marginBottom: 30,
     alignItems: 'center',
   },
   registerLinkText: {
-    color: '#888',
+    color: COLORS.textSecondary,
     fontSize: 14,
   },
   registerLinkBold: {
-    color: '#e74c3c',
+    color: COLORS.primary,
     fontWeight: '600',
   },
 });

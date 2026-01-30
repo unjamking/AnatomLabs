@@ -348,7 +348,285 @@ export interface WeeklyReport extends DailyReport {
   };
 }
 
+// ============================================
+// WORKOUT TRACKING TYPES (Tracked-style)
+// ============================================
+
+export interface WorkoutSet {
+  id: string;
+  setNumber: number;
+  weight: number; // kg
+  reps: number;
+  rpe?: number; // Rate of Perceived Exertion 1-10
+  isWarmup: boolean;
+  isDropSet: boolean;
+  isFailure: boolean;
+  restTime?: number; // seconds
+  notes?: string;
+  completedAt?: string;
+}
+
+export interface WorkoutExerciseLog {
+  id: string;
+  exerciseId: string;
+  exerciseName: string;
+  muscleGroup: string;
+  sets: WorkoutSet[];
+  notes?: string;
+  supersetWith?: string; // exercise id
+  orderIndex: number;
+}
+
+export interface ActiveWorkout {
+  id: string;
+  userId: string;
+  name: string;
+  startedAt: string;
+  exercises: WorkoutExerciseLog[];
+  notes?: string;
+  templateId?: string;
+}
+
+export interface CompletedWorkout extends ActiveWorkout {
+  completedAt: string;
+  duration: number; // minutes
+  totalVolume: number; // total kg lifted (weight * reps)
+  totalSets: number;
+  totalReps: number;
+  musclesWorked: string[];
+  personalRecords?: PersonalRecord[];
+}
+
+export interface PersonalRecord {
+  id: string;
+  exerciseId: string;
+  exerciseName: string;
+  type: 'weight' | 'reps' | 'volume' | 'one_rep_max';
+  value: number;
+  previousValue?: number;
+  achievedAt: string;
+  workoutId: string;
+}
+
+export interface ExerciseHistory {
+  exerciseId: string;
+  exerciseName: string;
+  sessions: {
+    date: string;
+    workoutId: string;
+    sets: WorkoutSet[];
+    totalVolume: number;
+    maxWeight: number;
+    maxReps: number;
+    estimatedOneRepMax: number;
+  }[];
+  personalRecords: {
+    maxWeight: number;
+    maxReps: number;
+    maxVolume: number;
+    estimatedOneRepMax: number;
+  };
+  progression: {
+    volumeTrend: 'increasing' | 'stable' | 'decreasing';
+    strengthTrend: 'increasing' | 'stable' | 'decreasing';
+  };
+}
+
+export interface WorkoutTemplate {
+  id: string;
+  userId: string;
+  name: string;
+  exercises: {
+    exerciseId: string;
+    exerciseName: string;
+    muscleGroup: string;
+    targetSets: number;
+    targetReps: string; // e.g., "8-12"
+    restTime: number;
+    notes?: string;
+  }[];
+  estimatedDuration: number;
+  muscleGroups: string[];
+  lastUsed?: string;
+  useCount: number;
+}
+
+export interface WorkoutStats {
+  totalWorkouts: number;
+  totalVolume: number;
+  totalTime: number; // minutes
+  averageWorkoutDuration: number;
+  workoutsThisWeek: number;
+  workoutsThisMonth: number;
+  currentStreak: number;
+  longestStreak: number;
+  favoriteExercises: { exerciseId: string; name: string; count: number }[];
+  muscleGroupDistribution: { muscle: string; percentage: number }[];
+}
+
+// ============================================
+// ENHANCED NUTRITION TYPES (Cronometer-style)
+// ============================================
+
+export interface Micronutrients {
+  // Vitamins (in mg unless specified)
+  vitaminA?: number; // mcg
+  vitaminC?: number;
+  vitaminD?: number; // mcg
+  vitaminE?: number;
+  vitaminK?: number; // mcg
+  vitaminB1?: number; // Thiamin
+  vitaminB2?: number; // Riboflavin
+  vitaminB3?: number; // Niacin
+  vitaminB5?: number; // Pantothenic Acid
+  vitaminB6?: number;
+  vitaminB7?: number; // mcg Biotin
+  vitaminB9?: number; // mcg Folate
+  vitaminB12?: number; // mcg
+
+  // Minerals (in mg unless specified)
+  calcium?: number;
+  iron?: number;
+  magnesium?: number;
+  phosphorus?: number;
+  potassium?: number;
+  sodium?: number;
+  zinc?: number;
+  copper?: number;
+  manganese?: number;
+  selenium?: number; // mcg
+  chromium?: number; // mcg
+  molybdenum?: number; // mcg
+  iodine?: number; // mcg
+
+  // Other
+  cholesterol?: number;
+  omega3?: number;
+  omega6?: number;
+  transFat?: number;
+  saturatedFat?: number;
+  monounsaturatedFat?: number;
+  polyunsaturatedFat?: number;
+}
+
+export interface DetailedFood extends Food {
+  brand?: string;
+  category?: string;
+  barcode?: string;
+  micronutrients?: Micronutrients;
+  servingSizeGrams?: number;
+  alternateServings?: {
+    name: string;
+    grams: number;
+    calories: number;
+  }[];
+  isVerified?: boolean;
+  source?: 'usda' | 'user' | 'community';
+}
+
+export interface DetailedFoodLog extends FoodLog {
+  food: DetailedFood;
+  timestamp?: string;
+  micronutrients?: Micronutrients;
+}
+
+export interface NutrientTarget {
+  name: string;
+  key: string;
+  current: number;
+  target: number;
+  unit: string;
+  category: 'macro' | 'vitamin' | 'mineral' | 'other';
+  color?: string;
+}
+
+export interface DailyNutrientSummary {
+  date: string;
+  macros: {
+    calories: { consumed: number; target: number; remaining: number };
+    protein: { consumed: number; target: number; remaining: number };
+    carbs: { consumed: number; target: number; remaining: number };
+    fat: { consumed: number; target: number; remaining: number };
+    fiber: { consumed: number; target: number; remaining: number };
+    sugar: { consumed: number; target: number };
+  };
+  micronutrients: {
+    [key: string]: { consumed: number; target: number; percentage: number };
+  };
+  waterIntake: number; // ml
+  caloriesBurned: number;
+  netCalories: number;
+}
+
+export interface BiometricLog {
+  id: string;
+  userId: string;
+  date: string;
+  type: 'weight' | 'body_fat' | 'blood_pressure' | 'blood_glucose' | 'heart_rate' | 'waist' | 'chest' | 'arms' | 'thighs';
+  value: number;
+  value2?: number; // for blood pressure (systolic/diastolic)
+  unit: string;
+  notes?: string;
+}
+
+export interface NutrientGoals {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+  sugar: number;
+  sodium: number;
+  water: number; // ml
+  micronutrients: {
+    [key: string]: number;
+  };
+}
+
+export interface MealPlanDay {
+  date: string;
+  meals: {
+    breakfast: DetailedFood[];
+    lunch: DetailedFood[];
+    dinner: DetailedFood[];
+    snacks: DetailedFood[];
+  };
+  totalCalories: number;
+  totalMacros: {
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+}
+
+export interface NutritionReport {
+  period: 'day' | 'week' | 'month';
+  startDate: string;
+  endDate: string;
+  averages: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+  adherenceScore: number; // 0-100
+  topFoods: { food: Food; count: number; totalCalories: number }[];
+  macroDistribution: {
+    protein: number; // percentage
+    carbs: number;
+    fat: number;
+  };
+  trends: {
+    caloriesTrend: number[]; // daily values
+    weightTrend?: number[];
+  };
+  insights: string[];
+}
+
+// ============================================
 // API Response Types
+// ============================================
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T;

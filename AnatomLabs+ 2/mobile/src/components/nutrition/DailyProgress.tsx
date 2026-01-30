@@ -1,6 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import ProgressRing from './ProgressRing';
+import Animated, {
+  useAnimatedStyle,
+  withDelay,
+  withSpring,
+  useSharedValue,
+} from 'react-native-reanimated';
+import { AnimatedProgressRing, FadeIn, COLORS, SPRING_CONFIG } from '../animations';
 
 interface DailyProgressProps {
   consumed: {
@@ -33,55 +39,65 @@ export default function DailyProgress({ consumed, targets }: DailyProgressProps)
   return (
     <View style={styles.container}>
       <View style={styles.mainRingContainer}>
-        <ProgressRing
+        <AnimatedProgressRing
           progress={calorieProgress}
           size={140}
           strokeWidth={12}
-          color="#e74c3c"
+          color={COLORS.primary}
           label="Calories"
           value={`${Math.round(consumed.calories)}`}
+          delay={0}
+          duration={800}
         />
-        <View style={styles.remainingBadge}>
-          <Text style={styles.remainingText}>{Math.round(remaining.calories)} left</Text>
-        </View>
+        <FadeIn delay={400}>
+          <View style={styles.remainingBadge}>
+            <Text style={styles.remainingText}>{Math.round(remaining.calories)} left</Text>
+          </View>
+        </FadeIn>
       </View>
 
       <View style={styles.macrosContainer}>
-        <View style={styles.macroItem}>
-          <ProgressRing
+        <FadeIn delay={200} style={styles.macroItem}>
+          <AnimatedProgressRing
             progress={proteinProgress}
             size={70}
             strokeWidth={6}
-            color="#e74c3c"
+            color={COLORS.primary}
             label="Protein"
             value={`${Math.round(consumed.protein)}g`}
+            delay={200}
+            duration={600}
           />
           <Text style={styles.macroRemaining}>{Math.round(remaining.protein)}g left</Text>
-        </View>
+        </FadeIn>
 
-        <View style={styles.macroItem}>
-          <ProgressRing
+        <FadeIn delay={300} style={styles.macroItem}>
+          <AnimatedProgressRing
             progress={carbsProgress}
             size={70}
             strokeWidth={6}
             color="#3498db"
             label="Carbs"
             value={`${Math.round(consumed.carbs)}g`}
+            delay={300}
+            duration={600}
           />
           <Text style={styles.macroRemaining}>{Math.round(remaining.carbs)}g left</Text>
-        </View>
+        </FadeIn>
 
-        <View style={styles.macroItem}>
-          <ProgressRing
+        <FadeIn delay={400} style={styles.macroItem}>
+          <AnimatedProgressRing
             progress={fatProgress}
             size={70}
             strokeWidth={6}
             color="#f39c12"
             label="Fat"
             value={`${Math.round(consumed.fat)}g`}
+            delay={400}
+            duration={600}
           />
           <Text style={styles.macroRemaining}>{Math.round(remaining.fat)}g left</Text>
-        </View>
+        </FadeIn>
       </View>
     </View>
   );
@@ -89,13 +105,13 @@ export default function DailyProgress({ consumed, targets }: DailyProgressProps)
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 16,
     padding: 20,
     marginHorizontal: 20,
     marginVertical: 10,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: COLORS.border,
     alignItems: 'center',
   },
   mainRingContainer: {
@@ -106,11 +122,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 12,
     paddingVertical: 4,
-    backgroundColor: '#2a2a2a',
+    backgroundColor: COLORS.cardBackgroundLight,
     borderRadius: 12,
   },
   remainingText: {
-    color: '#888',
+    color: COLORS.textSecondary,
     fontSize: 12,
   },
   macrosContainer: {
@@ -122,7 +138,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   macroRemaining: {
-    color: '#666',
+    color: COLORS.textTertiary,
     fontSize: 10,
     marginTop: 4,
   },

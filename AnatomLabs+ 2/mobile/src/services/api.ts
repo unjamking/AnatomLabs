@@ -31,7 +31,7 @@ import {
 // Find it using: ipconfig (Windows) or ifconfig (Mac/Linux)
 
 // Configuration: Update your IP here
-const YOUR_IP = '192.168.1.18';
+const YOUR_IP = '192.168.1.59';
 
 // Automatic URL selection based on platform
 import { Platform } from 'react-native';

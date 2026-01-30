@@ -3,17 +3,37 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  interpolate,
+} from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import {
+  AnimatedCard,
+  AnimatedButton,
+  AnimatedListItem,
+  FadeIn,
+  SlideIn,
+  BlurHeader,
+  GlassCard,
+  Skeleton,
+  useHaptics,
+  COLORS,
+  SHADOWS,
+} from '../../components/animations';
 
 export default function HomeScreen({ navigation }: any) {
   const { user, logout } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({
     bmr: 0,
     tdee: 0,
@@ -21,11 +41,21 @@ export default function HomeScreen({ navigation }: any) {
     totalWorkouts: 0,
   });
 
+  const scrollY = useSharedValue(0);
+  const { trigger } = useHaptics();
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
+
   useEffect(() => {
     loadStats();
   }, []);
 
   const loadStats = async () => {
+    setIsLoading(true);
     try {
       const nutrition = await api.getNutritionPlan();
       setStats(prev => ({
@@ -35,145 +65,225 @@ export default function HomeScreen({ navigation }: any) {
       }));
     } catch (error) {
       console.log('Stats load error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const onRefresh = async () => {
     setIsRefreshing(true);
+    trigger('light');
     await loadStats();
     setIsRefreshing(false);
+    trigger('success');
   };
 
   const handleLogout = async () => {
+    trigger('medium');
     await logout();
   };
 
+  const headerStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      scrollY.value,
+      [0, 100],
+      [1, 0],
+      'clamp'
+    );
+    const translateY = interpolate(
+      scrollY.value,
+      [0, 100],
+      [0, -20],
+      'clamp'
+    );
+    return {
+      opacity,
+      transform: [{ translateY }],
+    };
+  });
+
+  const quickActions = [
+    {
+      title: 'Explore Anatomy',
+      subtitle: 'Learn about muscles and body parts',
+      icon: 'body-outline' as const,
+      screen: 'BodyExplorer',
+      color: '#3498db',
+    },
+    {
+      title: 'Generate Workout',
+      subtitle: 'Science-based training plan',
+      icon: 'barbell-outline' as const,
+      screen: 'Workouts',
+      color: '#e74c3c',
+    },
+    {
+      title: 'View Nutrition Plan',
+      subtitle: 'BMR, TDEE & macro targets',
+      icon: 'nutrition-outline' as const,
+      screen: 'Nutrition',
+      color: '#2ecc71',
+    },
+    {
+      title: 'Check Reports',
+      subtitle: 'Performance & injury prevention',
+      icon: 'analytics-outline' as const,
+      screen: 'Reports',
+      color: '#9b59b6',
+    },
+  ];
+
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-      }
-    >
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Welcome back,</Text>
-          <Text style={styles.name}>{user?.name || 'User'}</Text>
-        </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={styles.container}>
+      <BlurHeader
+        title="Home"
+        scrollY={scrollY}
+        rightElement={
+          <AnimatedButton
+            variant="ghost"
+            size="small"
+            onPress={handleLogout}
+            title="Logout"
+            textStyle={{ color: COLORS.primary }}
+          />
+        }
+      />
 
-      <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{stats.bmr}</Text>
-          <Text style={styles.statLabel}>BMR (kcal/day)</Text>
-          <Text style={styles.statSubtext}>Basal Metabolic Rate</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{stats.tdee}</Text>
-          <Text style={styles.statLabel}>TDEE (kcal/day)</Text>
-          <Text style={styles.statSubtext}>Total Daily Energy</Text>
-        </View>
-      </View>
+      <Animated.ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+          />
+        }
+      >
+        {/* Header */}
+        <Animated.View style={[styles.header, headerStyle]}>
+          <SlideIn direction="left" delay={0}>
+            <Text style={styles.greeting}>Welcome back,</Text>
+            <Text style={styles.name}>{user?.name || 'User'}</Text>
+          </SlideIn>
+        </Animated.View>
 
-      <View style={styles.userInfo}>
-        <Text style={styles.sectionTitle}>Your Profile</Text>
-        <View style={styles.infoGrid}>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Goal</Text>
-            <Text style={styles.infoValue}>
-              {user?.goal?.replace('_', ' ') || 'Not set'}
-            </Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Level</Text>
-            <Text style={styles.infoValue}>
-              {user?.experience_level || 'Beginner'}
-            </Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Weight</Text>
-            <Text style={styles.infoValue}>{user?.weight || 0} kg</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Height</Text>
-            <Text style={styles.infoValue}>{user?.height || 0} cm</Text>
+        {/* Stats Cards */}
+        <View style={styles.statsContainer}>
+          {isLoading ? (
+            <>
+              <Skeleton width="48%" height={120} borderRadius={16} />
+              <Skeleton width="48%" height={120} borderRadius={16} />
+            </>
+          ) : (
+            <>
+              <GlassCard delay={100} style={styles.statCard} borderGlow glowColor="#e74c3c">
+                <Text style={styles.statValue}>{stats.bmr}</Text>
+                <Text style={styles.statLabel}>BMR (kcal/day)</Text>
+                <Text style={styles.statSubtext}>Basal Metabolic Rate</Text>
+              </GlassCard>
+              <GlassCard delay={200} style={styles.statCard} borderGlow glowColor="#3498db">
+                <Text style={[styles.statValue, { color: '#3498db' }]}>{stats.tdee}</Text>
+                <Text style={styles.statLabel}>TDEE (kcal/day)</Text>
+                <Text style={styles.statSubtext}>Total Daily Energy</Text>
+              </GlassCard>
+            </>
+          )}
+        </View>
+
+        {/* User Profile */}
+        <View style={styles.userInfo}>
+          <FadeIn delay={300}>
+            <Text style={styles.sectionTitle}>Your Profile</Text>
+          </FadeIn>
+          <View style={styles.infoGrid}>
+            {isLoading ? (
+              <>
+                <Skeleton width="48%" height={80} borderRadius={12} />
+                <Skeleton width="48%" height={80} borderRadius={12} />
+                <Skeleton width="48%" height={80} borderRadius={12} />
+                <Skeleton width="48%" height={80} borderRadius={12} />
+              </>
+            ) : (
+              [
+                { label: 'Goal', value: user?.goal?.replace('_', ' ') || 'Not set' },
+                { label: 'Level', value: user?.experience_level || 'Beginner' },
+                { label: 'Weight', value: `${user?.weight || 0} kg` },
+                { label: 'Height', value: `${user?.height || 0} cm` },
+              ].map((item, index) => (
+                <AnimatedCard
+                  key={item.label}
+                  delay={350 + index * 50}
+                  pressable={false}
+                  style={styles.infoItem}
+                >
+                  <Text style={styles.infoLabel}>{item.label}</Text>
+                  <Text style={styles.infoValue}>{item.value}</Text>
+                </AnimatedCard>
+              ))
+            )}
           </View>
         </View>
-      </View>
 
-      <View style={styles.quickActions}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => navigation.navigate('BodyExplorer')}
-        >
-          <Text style={styles.actionButtonText}>Explore Anatomy</Text>
-          <Text style={styles.actionButtonSubtext}>
-            Learn about muscles and body parts
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => navigation.navigate('Workouts')}
-        >
-          <Text style={styles.actionButtonText}>Generate Workout</Text>
-          <Text style={styles.actionButtonSubtext}>
-            Science-based training plan
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => navigation.navigate('Nutrition')}
-        >
-          <Text style={styles.actionButtonText}>View Nutrition Plan</Text>
-          <Text style={styles.actionButtonSubtext}>
-            BMR, TDEE & macro targets
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => navigation.navigate('Reports')}
-        >
-          <Text style={styles.actionButtonText}>Check Reports</Text>
-          <Text style={styles.actionButtonSubtext}>
-            Performance & injury prevention
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
+          <FadeIn delay={500}>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+          </FadeIn>
+          {quickActions.map((action, index) => (
+            <AnimatedListItem key={action.screen} index={index} enterFrom="right">
+              <AnimatedCard
+                onPress={() => {
+                  trigger('light');
+                  navigation.navigate(action.screen);
+                }}
+                style={styles.actionButton}
+                variant="elevated"
+              >
+                <View style={styles.actionContent}>
+                  <View style={[styles.iconContainer, { backgroundColor: `${action.color}20` }]}>
+                    <Ionicons name={action.icon} size={24} color={action.color} />
+                  </View>
+                  <View style={styles.actionTextContainer}>
+                    <Text style={styles.actionButtonText}>{action.title}</Text>
+                    <Text style={styles.actionButtonSubtext}>{action.subtitle}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+                </View>
+              </AnimatedCard>
+            </AnimatedListItem>
+          ))}
+        </View>
+      </Animated.ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: COLORS.background,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingTop: 120,
+    paddingBottom: 40,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 20,
-    paddingTop: 60,
   },
   greeting: {
     fontSize: 16,
-    color: '#888',
+    color: COLORS.textSecondary,
   },
   name: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#fff',
-  },
-  logoutButton: {
-    padding: 10,
-  },
-  logoutText: {
-    color: '#e74c3c',
-    fontSize: 16,
+    color: COLORS.text,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -182,26 +292,21 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#333',
   },
   statValue: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#e74c3c',
+    color: COLORS.primary,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 14,
-    color: '#fff',
+    color: COLORS.text,
     marginBottom: 4,
   },
   statSubtext: {
     fontSize: 11,
-    color: '#666',
+    color: COLORS.textTertiary,
   },
   userInfo: {
     padding: 20,
@@ -209,7 +314,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
+    color: COLORS.text,
     marginBottom: 16,
   },
   infoGrid: {
@@ -220,21 +325,16 @@ const styles = StyleSheet.create({
   infoItem: {
     flex: 1,
     minWidth: '45%',
-    backgroundColor: '#1a1a1a',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#333',
   },
   infoLabel: {
     fontSize: 12,
-    color: '#888',
+    color: COLORS.textSecondary,
     marginBottom: 4,
   },
   infoValue: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: COLORS.text,
     textTransform: 'capitalize',
   },
   quickActions: {
@@ -242,21 +342,33 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   actionButton: {
-    backgroundColor: '#1a1a1a',
-    padding: 20,
-    borderRadius: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#333',
+    padding: 0,
+  },
+  actionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  actionTextContainer: {
+    flex: 1,
   },
   actionButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
-    marginBottom: 6,
+    color: COLORS.text,
+    marginBottom: 4,
   },
   actionButtonSubtext: {
-    fontSize: 14,
-    color: '#888',
+    fontSize: 13,
+    color: COLORS.textSecondary,
   },
 });

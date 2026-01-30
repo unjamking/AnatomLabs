@@ -3,13 +3,33 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import { DailyReport } from '../../types';
+import {
+  AnimatedCard,
+  AnimatedButton,
+  AnimatedListItem,
+  BlurHeader,
+  GlassCard,
+  FadeIn,
+  SlideIn,
+  Skeleton,
+  AnimatedProgressRing,
+  useHaptics,
+  COLORS,
+  SPRING_CONFIG,
+} from '../../components/animations';
 
 export default function ReportsScreen() {
   const [report, setReport] = useState<DailyReport | null>(null);
@@ -17,6 +37,22 @@ export default function ReportsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [reportType, setReportType] = useState<'daily' | 'injury'>('daily');
+
+  const scrollY = useSharedValue(0);
+  const { trigger } = useHaptics();
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
+
+  // Tab animation
+  const tabIndicator = useSharedValue(0);
+
+  const tabIndicatorStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: tabIndicator.value }],
+  }));
 
   useEffect(() => {
     loadData();
@@ -41,259 +77,325 @@ export default function ReportsScreen() {
 
   const onRefresh = async () => {
     setIsRefreshing(true);
+    trigger('light');
     await loadData();
     setIsRefreshing(false);
+    trigger('success');
+  };
+
+  const handleTabChange = (tab: 'daily' | 'injury') => {
+    trigger('selection');
+    setReportType(tab);
+    tabIndicator.value = withSpring(tab === 'daily' ? 0 : 170, SPRING_CONFIG.snappy);
   };
 
   const getRiskColor = (level: string) => {
     switch (level) {
       case 'low':
-        return '#27ae60';
+        return COLORS.success;
       case 'moderate':
-        return '#f39c12';
+        return COLORS.warning;
       case 'high':
         return '#e67e22';
       case 'very_high':
-        return '#e74c3c';
+        return COLORS.error;
       default:
-        return '#888';
+        return COLORS.textSecondary;
+    }
+  };
+
+  const getRiskIcon = (level: string) => {
+    switch (level) {
+      case 'low':
+        return 'checkmark-circle';
+      case 'moderate':
+        return 'alert-circle';
+      case 'high':
+      case 'very_high':
+        return 'warning';
+      default:
+        return 'help-circle';
     }
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Reports</Text>
-      </View>
+      <BlurHeader
+        title="Reports"
+        scrollY={scrollY}
+      />
 
-      <View style={styles.tabs}>
-        <TouchableOpacity
-          style={[styles.tab, reportType === 'daily' && styles.tabActive]}
-          onPress={() => setReportType('daily')}
-        >
-          <Text style={[styles.tabText, reportType === 'daily' && styles.tabTextActive]}>
-            Daily
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, reportType === 'injury' && styles.tabActive]}
-          onPress={() => setReportType('injury')}
-        >
-          <Text style={[styles.tabText, reportType === 'injury' && styles.tabTextActive]}>
-            Injury Risk
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <Animated.ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+          />
+        }
+      >
+        <SlideIn direction="left" delay={0}>
+          <Text style={styles.title}>Your Reports</Text>
+        </SlideIn>
 
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#e74c3c" />
-        </View>
-      ) : (
-        <ScrollView
-          style={styles.content}
-          refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-          }
-        >
-          {reportType === 'daily' && report ? (
-            <>
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Nutrition Summary</Text>
+        {/* Tab Selector */}
+        <FadeIn delay={100}>
+          <View style={styles.tabs}>
+            <TouchableOpacity
+              style={[styles.tab, reportType === 'daily' && styles.tabActive]}
+              onPress={() => handleTabChange('daily')}
+            >
+              <Ionicons
+                name="calendar-outline"
+                size={18}
+                color={reportType === 'daily' ? '#fff' : COLORS.textSecondary}
+              />
+              <Text style={[styles.tabText, reportType === 'daily' && styles.tabTextActive]}>
+                Daily
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, reportType === 'injury' && styles.tabActive]}
+              onPress={() => handleTabChange('injury')}
+            >
+              <Ionicons
+                name="shield-outline"
+                size={18}
+                color={reportType === 'injury' ? '#fff' : COLORS.textSecondary}
+              />
+              <Text style={[styles.tabText, reportType === 'injury' && styles.tabTextActive]}>
+                Injury Risk
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </FadeIn>
+
+        {isLoading ? (
+          <View style={styles.skeletonContainer}>
+            <Skeleton width="100%" height={200} borderRadius={16} style={{ marginBottom: 16 }} />
+            <Skeleton width="100%" height={150} borderRadius={16} style={{ marginBottom: 16 }} />
+            <Skeleton width="100%" height={150} borderRadius={16} />
+          </View>
+        ) : reportType === 'daily' && report ? (
+          <>
+            {/* Nutrition Summary */}
+            <SlideIn direction="bottom" delay={150}>
+              <GlassCard style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Ionicons name="nutrition-outline" size={20} color={COLORS.primary} />
+                  <Text style={styles.sectionTitle}>Nutrition Summary</Text>
+                </View>
                 <View style={styles.nutritionGrid}>
-                  <View style={styles.nutritionItem}>
-                    <Text style={styles.nutritionValue}>
-                      {Math.round(report.nutrition.calories)}
-                    </Text>
-                    <Text style={styles.nutritionTarget}>
-                      / {Math.round(report.nutrition.targetCalories)}
-                    </Text>
-                    <Text style={styles.nutritionLabel}>Calories</Text>
-                  </View>
-                  <View style={styles.nutritionItem}>
-                    <Text style={styles.nutritionValue}>
-                      {Math.round(report.nutrition.protein)}g
-                    </Text>
-                    <Text style={styles.nutritionTarget}>
-                      / {Math.round(report.nutrition.targetProtein)}g
-                    </Text>
-                    <Text style={styles.nutritionLabel}>Protein</Text>
-                  </View>
-                  <View style={styles.nutritionItem}>
-                    <Text style={styles.nutritionValue}>
-                      {Math.round(report.nutrition.carbs)}g
-                    </Text>
-                    <Text style={styles.nutritionTarget}>
-                      / {Math.round(report.nutrition.targetCarbs)}g
-                    </Text>
-                    <Text style={styles.nutritionLabel}>Carbs</Text>
-                  </View>
-                  <View style={styles.nutritionItem}>
-                    <Text style={styles.nutritionValue}>
-                      {Math.round(report.nutrition.fat)}g
-                    </Text>
-                    <Text style={styles.nutritionTarget}>
-                      / {Math.round(report.nutrition.targetFat)}g
-                    </Text>
-                    <Text style={styles.nutritionLabel}>Fat</Text>
-                  </View>
+                  {[
+                    { label: 'Calories', value: report.nutrition.calories, target: report.nutrition.targetCalories, color: COLORS.primary },
+                    { label: 'Protein', value: report.nutrition.protein, target: report.nutrition.targetProtein, unit: 'g', color: COLORS.primary },
+                    { label: 'Carbs', value: report.nutrition.carbs, target: report.nutrition.targetCarbs, unit: 'g', color: COLORS.info },
+                    { label: 'Fat', value: report.nutrition.fat, target: report.nutrition.targetFat, unit: 'g', color: COLORS.warning },
+                  ].map((item, index) => (
+                    <View key={item.label} style={styles.nutritionItem}>
+                      <AnimatedProgressRing
+                        progress={(item.value / item.target) * 100}
+                        size={60}
+                        strokeWidth={5}
+                        color={item.color}
+                        label={item.label}
+                        value={`${Math.round(item.value)}${item.unit || ''}`}
+                        delay={200 + index * 100}
+                      />
+                      <Text style={styles.nutritionTarget}>
+                        / {Math.round(item.target)}{item.unit || ''}
+                      </Text>
+                    </View>
+                  ))}
                 </View>
-                <View style={styles.adherenceBar}>
-                  <View
-                    style={[
-                      styles.adherenceBarFill,
-                      { width: `${report.nutrition.adherence}%` },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.adherenceText}>
-                  {Math.round(report.nutrition.adherence)}% adherence
-                </Text>
-              </View>
-
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Activity</Text>
-                <View style={styles.activityGrid}>
-                  <View style={styles.activityItem}>
-                    <Text style={styles.activityValue}>
-                      {report.activity.steps.toLocaleString()}
-                    </Text>
-                    <Text style={styles.activityLabel}>Steps</Text>
-                  </View>
-                  <View style={styles.activityItem}>
-                    <Text style={styles.activityValue}>
-                      {Math.round(report.activity.caloriesBurned)}
-                    </Text>
-                    <Text style={styles.activityLabel}>Calories Burned</Text>
-                  </View>
-                  <View style={styles.activityItem}>
-                    <Text style={styles.activityValue}>
-                      {report.activity.waterIntake}ml
-                    </Text>
-                    <Text style={styles.activityLabel}>Water</Text>
-                  </View>
-                  <View style={styles.activityItem}>
-                    <Text style={styles.activityValue}>
-                      {report.activity.sleepHours}h
-                    </Text>
-                    <Text style={styles.activityLabel}>Sleep</Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Training</Text>
-                <View style={styles.trainingCard}>
-                  <Text style={styles.trainingText}>
-                    Workouts completed: {report.training.workoutsCompleted}
-                  </Text>
-                  <Text style={styles.trainingText}>
-                    Total volume: {report.training.totalVolume} sets
-                  </Text>
-                  {report.training.musclesTrained.length > 0 && (
-                    <Text style={styles.trainingText}>
-                      Muscles trained: {report.training.musclesTrained.join(', ')}
-                    </Text>
-                  )}
-                </View>
-              </View>
-
-              {report.injuryRisk && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Injury Risk Overview</Text>
-                  <View
-                    style={[
-                      styles.riskCard,
-                      { borderColor: getRiskColor(report.injuryRisk.overallRisk) },
-                    ]}
-                  >
-                    <Text
+                <View style={styles.adherenceContainer}>
+                  <View style={styles.adherenceBar}>
+                    <Animated.View
                       style={[
-                        styles.riskLevel,
-                        { color: getRiskColor(report.injuryRisk.overallRisk) },
+                        styles.adherenceBarFill,
+                        { width: `${report.nutrition.adherence}%` },
                       ]}
-                    >
-                      {report.injuryRisk.overallRisk.replace('_', ' ').toUpperCase()}
-                    </Text>
-                    <Text style={styles.riskText}>
-                      {report.injuryRisk.needsRestDay
-                        ? 'Consider taking a rest day'
-                        : 'You can continue training'}
-                    </Text>
+                    />
+                  </View>
+                  <Text style={styles.adherenceText}>
+                    {Math.round(report.nutrition.adherence)}% adherence
+                  </Text>
+                </View>
+              </GlassCard>
+            </SlideIn>
+
+            {/* Activity */}
+            <SlideIn direction="bottom" delay={250}>
+              <GlassCard style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Ionicons name="fitness-outline" size={20} color={COLORS.info} />
+                  <Text style={styles.sectionTitle}>Activity</Text>
+                </View>
+                <View style={styles.activityGrid}>
+                  {[
+                    { icon: 'footsteps-outline', label: 'Steps', value: report.activity.steps.toLocaleString(), color: COLORS.info },
+                    { icon: 'flame-outline', label: 'Burned', value: `${Math.round(report.activity.caloriesBurned)}`, color: COLORS.primary },
+                    { icon: 'water-outline', label: 'Water', value: `${report.activity.waterIntake}ml`, color: COLORS.info },
+                    { icon: 'moon-outline', label: 'Sleep', value: `${report.activity.sleepHours}h`, color: '#9b59b6' },
+                  ].map((item, index) => (
+                    <AnimatedCard key={item.label} delay={300 + index * 50} pressable={false} style={styles.activityItem}>
+                      <Ionicons name={item.icon as any} size={24} color={item.color} />
+                      <Text style={[styles.activityValue, { color: item.color }]}>{item.value}</Text>
+                      <Text style={styles.activityLabel}>{item.label}</Text>
+                    </AnimatedCard>
+                  ))}
+                </View>
+              </GlassCard>
+            </SlideIn>
+
+            {/* Training */}
+            <SlideIn direction="bottom" delay={350}>
+              <GlassCard style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Ionicons name="barbell-outline" size={20} color={COLORS.success} />
+                  <Text style={styles.sectionTitle}>Training</Text>
+                </View>
+                <View style={styles.trainingStats}>
+                  <View style={styles.trainingStat}>
+                    <Text style={styles.trainingValue}>{report.training.workoutsCompleted}</Text>
+                    <Text style={styles.trainingLabel}>Workouts</Text>
+                  </View>
+                  <View style={styles.trainingStat}>
+                    <Text style={styles.trainingValue}>{report.training.totalVolume}</Text>
+                    <Text style={styles.trainingLabel}>Total Sets</Text>
                   </View>
                 </View>
-              )}
-            </>
-          ) : injuryRisk ? (
-            <>
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Overall Risk</Text>
-                <View
-                  style={[
-                    styles.riskCard,
-                    { borderColor: getRiskColor(injuryRisk.overallRisk) },
-                  ]}
+                {report.training.musclesTrained.length > 0 && (
+                  <View style={styles.musclesTrained}>
+                    <Text style={styles.musclesTrainedLabel}>Muscles trained:</Text>
+                    <View style={styles.musclesTags}>
+                      {report.training.musclesTrained.map((muscle, i) => (
+                        <View key={i} style={styles.muscleTag}>
+                          <Text style={styles.muscleTagText}>{muscle}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </GlassCard>
+            </SlideIn>
+
+            {/* Injury Risk Overview */}
+            {report.injuryRisk && (
+              <SlideIn direction="bottom" delay={450}>
+                <GlassCard
+                  style={[styles.riskCard, { borderColor: getRiskColor(report.injuryRisk.overallRisk) }]}
+                  borderGlow
+                  glowColor={getRiskColor(report.injuryRisk.overallRisk)}
                 >
-                  <Text
-                    style={[
-                      styles.riskLevel,
-                      { color: getRiskColor(injuryRisk.overallRisk) },
-                    ]}
-                  >
-                    {injuryRisk.overallRisk?.replace('_', ' ').toUpperCase() || 'LOW'}
+                  <Ionicons
+                    name={getRiskIcon(report.injuryRisk.overallRisk) as any}
+                    size={32}
+                    color={getRiskColor(report.injuryRisk.overallRisk)}
+                  />
+                  <Text style={[styles.riskLevel, { color: getRiskColor(report.injuryRisk.overallRisk) }]}>
+                    {report.injuryRisk.overallRisk.replace('_', ' ').toUpperCase()}
                   </Text>
                   <Text style={styles.riskText}>
-                    {injuryRisk.needsRestDay
-                      ? 'Rest day recommended'
-                      : 'Safe to train'}
+                    {report.injuryRisk.needsRestDay
+                      ? 'Consider taking a rest day'
+                      : 'You can continue training'}
                   </Text>
-                </View>
-              </View>
+                </GlassCard>
+              </SlideIn>
+            )}
+          </>
+        ) : injuryRisk ? (
+          <>
+            {/* Overall Risk */}
+            <SlideIn direction="bottom" delay={150}>
+              <GlassCard
+                style={styles.mainRiskCard}
+                borderGlow
+                glowColor={getRiskColor(injuryRisk.overallRisk)}
+              >
+                <Ionicons
+                  name={getRiskIcon(injuryRisk.overallRisk) as any}
+                  size={48}
+                  color={getRiskColor(injuryRisk.overallRisk)}
+                />
+                <Text style={[styles.mainRiskLevel, { color: getRiskColor(injuryRisk.overallRisk) }]}>
+                  {injuryRisk.overallRisk?.replace('_', ' ').toUpperCase() || 'LOW'}
+                </Text>
+                <Text style={styles.mainRiskText}>
+                  {injuryRisk.needsRestDay ? 'Rest day recommended' : 'Safe to train'}
+                </Text>
+              </GlassCard>
+            </SlideIn>
 
-              {injuryRisk.recommendations && injuryRisk.recommendations.length > 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Recommendations</Text>
-                  {injuryRisk.recommendations.map((rec: string, index: number) => (
-                    <View key={index} style={styles.recommendationCard}>
+            {/* Recommendations */}
+            {injuryRisk.recommendations && injuryRisk.recommendations.length > 0 && (
+              <FadeIn delay={250}>
+                <Text style={styles.subsectionTitle}>Recommendations</Text>
+                {injuryRisk.recommendations.map((rec: string, index: number) => (
+                  <AnimatedListItem key={index} index={index} enterFrom="right">
+                    <GlassCard style={styles.recommendationCard}>
+                      <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
                       <Text style={styles.recommendationText}>{rec}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
+                    </GlassCard>
+                  </AnimatedListItem>
+                ))}
+              </FadeIn>
+            )}
 
-              {injuryRisk.musclesAtRisk && injuryRisk.musclesAtRisk.length > 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Muscles at Risk</Text>
-                  {injuryRisk.musclesAtRisk.map((muscleRisk: any, index: number) => (
-                    <View key={index} style={styles.muscleRiskCard}>
+            {/* Muscles at Risk */}
+            {injuryRisk.musclesAtRisk && injuryRisk.musclesAtRisk.length > 0 && (
+              <FadeIn delay={350}>
+                <Text style={styles.subsectionTitle}>Muscles at Risk</Text>
+                {injuryRisk.musclesAtRisk.map((muscleRisk: any, index: number) => (
+                  <AnimatedListItem key={index} index={index} enterFrom="bottom">
+                    <GlassCard style={styles.muscleRiskCard}>
                       <View style={styles.muscleRiskHeader}>
-                        <Text style={styles.muscleName}>
-                          {muscleRisk.muscle?.name || 'Unknown'}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.muscleRiskLevel,
-                            { color: getRiskColor(muscleRisk.riskLevel) },
-                          ]}
-                        >
-                          {muscleRisk.riskLevel?.replace('_', ' ').toUpperCase()}
-                        </Text>
+                        <View style={styles.muscleRiskInfo}>
+                          <Ionicons name="body-outline" size={20} color={COLORS.textSecondary} />
+                          <Text style={styles.muscleRiskName}>
+                            {muscleRisk.muscle?.name || 'Unknown'}
+                          </Text>
+                        </View>
+                        <View style={[styles.riskBadge, { backgroundColor: `${getRiskColor(muscleRisk.riskLevel)}20` }]}>
+                          <Text style={[styles.riskBadgeText, { color: getRiskColor(muscleRisk.riskLevel) }]}>
+                            {muscleRisk.riskLevel?.replace('_', ' ').toUpperCase()}
+                          </Text>
+                        </View>
                       </View>
-                      <Text style={styles.muscleRiskText}>
-                        Used {muscleRisk.usageCount} times recently
-                      </Text>
-                      {muscleRisk.lastTrained && (
-                        <Text style={styles.muscleRiskText}>
-                          Last trained: {muscleRisk.hoursSinceTraining}h ago
-                        </Text>
-                      )}
-                    </View>
-                  ))}
-                </View>
-              )}
+                      <View style={styles.muscleRiskStats}>
+                        <View style={styles.muscleRiskStat}>
+                          <Ionicons name="repeat-outline" size={14} color={COLORS.textTertiary} />
+                          <Text style={styles.muscleRiskStatText}>
+                            Used {muscleRisk.usageCount}x recently
+                          </Text>
+                        </View>
+                        {muscleRisk.lastTrained && (
+                          <View style={styles.muscleRiskStat}>
+                            <Ionicons name="time-outline" size={14} color={COLORS.textTertiary} />
+                            <Text style={styles.muscleRiskStatText}>
+                              {muscleRisk.hoursSinceTraining}h ago
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </GlassCard>
+                  </AnimatedListItem>
+                ))}
+              </FadeIn>
+            )}
 
-              <View style={styles.infoBox}>
-                <Text style={styles.infoTitle}>About Injury Prevention</Text>
+            {/* Info Box */}
+            <SlideIn direction="bottom" delay={450}>
+              <GlassCard style={styles.infoBox}>
+                <View style={styles.infoHeader}>
+                  <Ionicons name="information-circle" size={20} color={COLORS.info} />
+                  <Text style={styles.infoTitle}>About Injury Prevention</Text>
+                </View>
                 <Text style={styles.infoText}>
                   This system tracks muscle usage patterns and recovery time to detect
                   overtraining. Recommendations are based on:{'\n\n'}
@@ -302,15 +404,18 @@ export default function ReportsScreen() {
                   • Cumulative fatigue patterns{'\n'}
                   • Sport-specific overuse risks
                 </Text>
-              </View>
-            </>
-          ) : (
-            <View style={styles.emptyContainer}>
+              </GlassCard>
+            </SlideIn>
+          </>
+        ) : (
+          <FadeIn delay={200}>
+            <GlassCard style={styles.emptyCard}>
+              <Ionicons name="document-text-outline" size={48} color={COLORS.textSecondary} />
               <Text style={styles.emptyText}>No data available</Text>
-            </View>
-          )}
-        </ScrollView>
-      )}
+            </GlassCard>
+          </FadeIn>
+        )}
+      </Animated.ScrollView>
     </View>
   );
 }
@@ -318,104 +423,101 @@ export default function ReportsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: COLORS.background,
   },
-  header: {
-    padding: 20,
-    paddingTop: 60,
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingTop: 120,
+    paddingHorizontal: 20,
+    paddingBottom: 100,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#fff',
+    color: COLORS.text,
+    marginBottom: 20,
   },
   tabs: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
     marginBottom: 20,
     gap: 12,
   },
   tab: {
     flex: 1,
-    padding: 12,
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 8,
+    justifyContent: 'center',
+    padding: 14,
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: COLORS.border,
+    gap: 8,
   },
   tabActive: {
-    backgroundColor: '#e74c3c',
-    borderColor: '#e74c3c',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   tabText: {
-    color: '#888',
-    fontSize: 16,
+    color: COLORS.textSecondary,
+    fontSize: 15,
     fontWeight: '600',
   },
   tabTextActive: {
     color: '#fff',
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  content: {
-    flex: 1,
+  skeletonContainer: {
+    marginTop: 10,
   },
   section: {
-    padding: 20,
+    marginBottom: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 8,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 16,
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.text,
   },
   nutritionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    justifyContent: 'space-around',
     marginBottom: 16,
   },
   nutritionItem: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: '#1a1a1a',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  nutritionValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#e74c3c',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   nutritionTarget: {
-    fontSize: 14,
-    color: '#888',
-    marginBottom: 4,
+    fontSize: 11,
+    color: COLORS.textTertiary,
+    marginTop: 4,
   },
-  nutritionLabel: {
-    fontSize: 12,
-    color: '#666',
+  adherenceContainer: {
+    marginTop: 8,
   },
   adherenceBar: {
     height: 8,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: COLORS.cardBackgroundLight,
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 8,
   },
   adherenceBarFill: {
     height: '100%',
-    backgroundColor: '#27ae60',
+    backgroundColor: COLORS.success,
+    borderRadius: 4,
   },
   adherenceText: {
-    fontSize: 14,
-    color: '#888',
+    fontSize: 13,
+    color: COLORS.textSecondary,
     textAlign: 'center',
   },
   activityGrid: {
@@ -426,115 +528,181 @@ const styles = StyleSheet.create({
   activityItem: {
     flex: 1,
     minWidth: '45%',
-    backgroundColor: '#1a1a1a',
+    alignItems: 'center',
     padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#333',
   },
   activityValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#3498db',
+    marginTop: 8,
     marginBottom: 4,
   },
   activityLabel: {
     fontSize: 12,
-    color: '#666',
+    color: COLORS.textTertiary,
   },
-  trainingCard: {
-    backgroundColor: '#1a1a1a',
-    padding: 20,
+  trainingStats: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 16,
+  },
+  trainingStat: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    padding: 16,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#333',
   },
-  trainingText: {
-    fontSize: 14,
-    color: '#ccc',
+  trainingValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: COLORS.success,
+  },
+  trainingLabel: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 4,
+  },
+  musclesTrained: {
+    marginTop: 8,
+  },
+  musclesTrainedLabel: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
     marginBottom: 8,
   },
+  musclesTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  muscleTag: {
+    backgroundColor: `${COLORS.success}20`,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  muscleTagText: {
+    fontSize: 12,
+    color: COLORS.success,
+    fontWeight: '600',
+  },
   riskCard: {
-    backgroundColor: '#1a1a1a',
-    padding: 24,
-    borderRadius: 12,
-    borderWidth: 2,
     alignItems: 'center',
+    padding: 24,
+    borderWidth: 2,
   },
   riskLevel: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
+    marginTop: 12,
     marginBottom: 8,
   },
   riskText: {
     fontSize: 14,
-    color: '#aaa',
+    color: COLORS.textSecondary,
+  },
+  mainRiskCard: {
+    alignItems: 'center',
+    padding: 32,
+    marginBottom: 24,
+  },
+  mainRiskLevel: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  mainRiskText: {
+    fontSize: 16,
+    color: COLORS.textSecondary,
+  },
+  subsectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 12,
+    marginTop: 8,
   },
   recommendationCard: {
-    backgroundColor: '#1a1a1a',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#333',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 10,
   },
   recommendationText: {
     fontSize: 14,
-    color: '#ccc',
+    color: COLORS.textSecondary,
+    flex: 1,
   },
   muscleRiskCard: {
-    backgroundColor: '#1a1a1a',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#333',
+    marginBottom: 10,
   },
   muscleRiskHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  muscleName: {
+  muscleRiskInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  muscleRiskName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: COLORS.text,
   },
-  muscleRiskLevel: {
-    fontSize: 12,
-    fontWeight: '600',
+  riskBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
-  muscleRiskText: {
+  riskBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  muscleRiskStats: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  muscleRiskStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  muscleRiskStatText: {
     fontSize: 13,
-    color: '#888',
-    marginBottom: 4,
+    color: COLORS.textTertiary,
   },
   infoBox: {
-    margin: 20,
-    padding: 20,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#333',
+    marginTop: 16,
+    marginBottom: 20,
+  },
+  infoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
   },
   infoTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
-    marginBottom: 12,
+    color: COLORS.text,
   },
   infoText: {
     fontSize: 14,
-    color: '#aaa',
+    color: COLORS.textSecondary,
     lineHeight: 22,
   },
-  emptyContainer: {
-    padding: 40,
+  emptyCard: {
     alignItems: 'center',
+    padding: 40,
   },
   emptyText: {
     fontSize: 16,
-    color: '#888',
+    color: COLORS.textSecondary,
+    marginTop: 16,
   },
 });

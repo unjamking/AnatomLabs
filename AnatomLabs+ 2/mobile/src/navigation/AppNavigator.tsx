@@ -1,7 +1,16 @@
 import React from 'react';
+import { Platform, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { BlurView } from 'expo-blur';
+import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  useAnimatedStyle,
+  withSpring,
+  useSharedValue,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '../context/AuthContext';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
@@ -10,29 +19,87 @@ import BodyExplorerScreen from '../screens/tabs/BodyExplorerScreen';
 import NutritionScreen from '../screens/tabs/NutritionScreen';
 import WorkoutsScreen from '../screens/tabs/WorkoutsScreen';
 import ReportsScreen from '../screens/tabs/ReportsScreen';
+import NutritionTrackingScreen from '../screens/tabs/NutritionTrackingScreen';
+import WorkoutTrackingScreen from '../screens/tabs/WorkoutTrackingScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
+type TabIconName = 'home' | 'body' | 'nutrition' | 'barbell' | 'analytics';
+
+const tabIcons: Record<string, { active: keyof typeof Ionicons.glyphMap; inactive: keyof typeof Ionicons.glyphMap }> = {
+  Home: { active: 'home', inactive: 'home-outline' },
+  BodyExplorer: { active: 'body', inactive: 'body-outline' },
+  Nutrition: { active: 'nutrition', inactive: 'nutrition-outline' },
+  Workouts: { active: 'barbell', inactive: 'barbell-outline' },
+  Reports: { active: 'analytics', inactive: 'analytics-outline' },
+};
+
+function AnimatedTabIcon({ name, focused, color, size }: { name: string; focused: boolean; color: string; size: number }) {
+  const scale = useSharedValue(1);
+
+  React.useEffect(() => {
+    if (focused) {
+      scale.value = withSpring(1.15, { damping: 10, stiffness: 200 });
+    } else {
+      scale.value = withSpring(1, { damping: 15, stiffness: 200 });
+    }
+  }, [focused]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const icons = tabIcons[name] || { active: 'help-circle', inactive: 'help-circle-outline' };
+  const iconName = focused ? icons.active : icons.inactive;
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <Ionicons name={iconName} size={size} color={color} />
+    </Animated.View>
+  );
+}
+
 function TabNavigator() {
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
         lazy: false,
+        tabBarIcon: ({ focused, color, size }) => (
+          <AnimatedTabIcon name={route.name} focused={focused} color={color} size={size} />
+        ),
         tabBarStyle: {
-          backgroundColor: '#0a0a0a',
-          borderTopColor: '#333',
-          borderTopWidth: 1,
-          paddingBottom: 8,
+          position: 'absolute',
+          backgroundColor: Platform.OS === 'ios' ? 'transparent' : 'rgba(10, 10, 10, 0.95)',
+          borderTopColor: 'rgba(51, 51, 51, 0.5)',
+          borderTopWidth: StyleSheet.hairlineWidth,
+          paddingBottom: Platform.OS === 'ios' ? 20 : 8,
           paddingTop: 8,
-          height: 60,
+          height: Platform.OS === 'ios' ? 85 : 60,
         },
+        tabBarBackground: () =>
+          Platform.OS === 'ios' ? (
+            <BlurView
+              intensity={80}
+              tint="dark"
+              style={StyleSheet.absoluteFill}
+            />
+          ) : null,
         tabBarActiveTintColor: '#e74c3c',
         tabBarInactiveTintColor: '#666',
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '600',
+          marginTop: 2,
+        },
+        tabBarItemStyle: {
+          paddingTop: 4,
+        },
+      })}
+      screenListeners={{
+        tabPress: () => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         },
       }}
     >
@@ -85,15 +152,51 @@ export default function AppNavigator() {
     <NavigationContainer>
       <Stack.Navigator
         screenOptions={{
-          headerShown: false
+          headerShown: false,
+          animation: 'fade_from_bottom',
+          animationDuration: 250,
         }}
       >
         {isLoggedIn ? (
-          <Stack.Screen name="Main" component={TabNavigator} />
+          <>
+            <Stack.Screen
+              name="Main"
+              component={TabNavigator}
+              options={{
+                animation: 'fade',
+              }}
+            />
+            <Stack.Screen
+              name="NutritionTracking"
+              component={NutritionTrackingScreen}
+              options={{
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
+              name="WorkoutTracking"
+              component={WorkoutTrackingScreen}
+              options={{
+                animation: 'slide_from_right',
+              }}
+            />
+          </>
         ) : (
           <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen
+              name="Login"
+              component={LoginScreen}
+              options={{
+                animation: 'fade',
+              }}
+            />
+            <Stack.Screen
+              name="Register"
+              component={RegisterScreen}
+              options={{
+                animation: 'slide_from_right',
+              }}
+            />
           </>
         )}
       </Stack.Navigator>

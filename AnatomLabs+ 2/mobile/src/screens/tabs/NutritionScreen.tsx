@@ -11,6 +11,8 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNutrition } from '../../context/NutritionContext';
 import api from '../../services/api';
 import { NutritionPlan, FoodLog, WeightLog, FoodSuggestion } from '../../types';
@@ -26,6 +28,7 @@ import {
 type TabType = 'today' | 'goals' | 'progress';
 
 export default function NutritionScreen() {
+  const navigation = useNavigation<any>();
   const {
     todaySummary,
     targets,
@@ -131,7 +134,7 @@ export default function NutritionScreen() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Update',
-          onPress: async (newServings) => {
+          onPress: async (newServings: string | undefined) => {
             const servingsNum = parseFloat(newServings || '1');
             if (servingsNum > 0) {
               try {
@@ -197,6 +200,18 @@ export default function NutritionScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Header with Advanced Tracking Button */}
+      <View style={styles.headerBar}>
+        <Text style={styles.headerTitle}>Nutrition</Text>
+        <TouchableOpacity
+          style={styles.advancedButton}
+          onPress={() => navigation.navigate('NutritionTracking')}
+        >
+          <Ionicons name="analytics" size={18} color="#e74c3c" />
+          <Text style={styles.advancedButtonText}>Advanced</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Tab Bar */}
       <View style={styles.tabBar}>
         <TouchableOpacity
@@ -458,10 +473,38 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
   },
+  headerBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 8,
+    backgroundColor: '#0a0a0a',
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  advancedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(231, 76, 60, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  advancedButtonText: {
+    color: '#e74c3c',
+    fontSize: 13,
+    fontWeight: '600',
+  },
   tabBar: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 8,
     paddingBottom: 12,
     backgroundColor: '#0a0a0a',
     borderBottomWidth: 1,
