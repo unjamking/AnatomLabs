@@ -569,6 +569,591 @@ export const MEDICAL_CONDITIONS: MedicalCondition[] = [
       ],
       focusNutrients: ['folate', 'iron', 'calcium', 'vitaminD', 'omega3', 'protein']
     }
+  },
+  {
+    id: 'depression',
+    name: 'Depression',
+    description: 'Clinical depression or major depressive disorder',
+    exerciseRestrictions: {
+      avoid: [],
+      caution: [],
+      recommended: ['Walking', 'Swimming', 'Yoga', 'Light Cardio', 'Group Fitness', 'Outdoor Activities'],
+      warnings: [
+        'Exercise is proven to help improve mood',
+        'Start with short, achievable goals',
+        'Outdoor exercise provides additional benefits',
+        'Social exercise can help with motivation'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [],
+      recommendations: [
+        'Omega-3 fatty acids support brain health',
+        'Adequate vitamin D (often low in depression)',
+        'B vitamins support nervous system',
+        'Limit alcohol and caffeine',
+        'Regular meal timing helps regulate mood'
+      ],
+      focusNutrients: ['omega3', 'vitaminD', 'vitaminB12', 'folate', 'magnesium', 'zinc']
+    }
+  },
+  {
+    id: 'anxiety',
+    name: 'Anxiety Disorder',
+    description: 'Generalized anxiety, panic disorder, or social anxiety',
+    exerciseRestrictions: {
+      avoid: [],
+      caution: ['Very high intensity exercise may trigger panic in some'],
+      recommended: ['Yoga', 'Walking', 'Swimming', 'Tai Chi', 'Moderate Cardio', 'Breathing Exercises'],
+      warnings: [
+        'Exercise helps reduce anxiety long-term',
+        'Avoid exercising close to bedtime',
+        'Focus on rhythmic, repetitive exercises',
+        'Include relaxation and stretching'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [
+        { nutrient: 'caffeine', limit: 100, reason: 'Limit caffeine as it can worsen anxiety' }
+      ],
+      recommendations: [
+        'Limit caffeine and stimulants',
+        'Avoid alcohol',
+        'Magnesium helps with relaxation',
+        'Regular meal timing prevents blood sugar crashes'
+      ],
+      focusNutrients: ['magnesium', 'omega3', 'vitaminB6', 'zinc', 'probiotics']
+    }
+  },
+  {
+    id: 'chronic_fatigue',
+    name: 'Chronic Fatigue Syndrome',
+    description: 'ME/CFS - extreme fatigue not improved by rest',
+    exerciseRestrictions: {
+      avoid: ['High-intensity exercise', 'Long duration cardio', 'Heavy weightlifting'],
+      caution: ['All exercise - must pace carefully'],
+      recommended: ['Gentle stretching', 'Short walks', 'Swimming (low intensity)', 'Yoga (restorative)'],
+      maxIntensity: 'low',
+      warnings: [
+        'Post-exertional malaise is common - pace yourself',
+        'Start extremely slowly (5-10 minutes)',
+        'Rest between activity bouts',
+        'Stop before feeling exhausted',
+        'Activity should not worsen symptoms next day'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [],
+      recommendations: [
+        'Anti-inflammatory diet may help',
+        'Small, frequent meals to maintain energy',
+        'Adequate protein for muscle maintenance',
+        'Stay well hydrated',
+        'Consider CoQ10 and B vitamins'
+      ],
+      focusNutrients: ['vitaminB12', 'vitaminD', 'magnesium', 'coQ10', 'iron']
+    }
+  },
+  {
+    id: 'fibromyalgia',
+    name: 'Fibromyalgia',
+    description: 'Chronic widespread pain and fatigue',
+    exerciseRestrictions: {
+      avoid: ['High-impact exercises', 'Heavy lifting', 'Intense exercise'],
+      caution: ['All resistance training - start very light'],
+      recommended: ['Water aerobics', 'Walking', 'Gentle yoga', 'Tai Chi', 'Stretching', 'Swimming'],
+      maxIntensity: 'moderate',
+      warnings: [
+        'Start low and go slow',
+        'Warm water exercise is especially beneficial',
+        'Regular gentle movement helps reduce pain',
+        'Listen to your body and rest when needed',
+        'Consistency is more important than intensity'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [],
+      recommendations: [
+        'Anti-inflammatory diet',
+        'Adequate vitamin D',
+        'Magnesium for muscle relaxation',
+        'Limit processed foods and sugar',
+        'Stay well hydrated'
+      ],
+      focusNutrients: ['vitaminD', 'magnesium', 'omega3', 'vitaminB12']
+    }
+  },
+  {
+    id: 'multiple_sclerosis',
+    name: 'Multiple Sclerosis',
+    description: 'Autoimmune disease affecting the nervous system',
+    exerciseRestrictions: {
+      avoid: ['Hot yoga', 'Outdoor exercise in heat', 'Very high intensity'],
+      caution: ['Balance exercises - use support', 'Fatigue management essential'],
+      recommended: ['Swimming', 'Water aerobics', 'Recumbent cycling', 'Yoga (cool room)', 'Resistance bands'],
+      maxIntensity: 'moderate',
+      warnings: [
+        'Avoid overheating - exercise in cool environments',
+        'Rest between sets and exercises',
+        'Exercise during cooler parts of day',
+        'Stop if symptoms worsen',
+        'Cooling vests can help during exercise'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [],
+      recommendations: [
+        'Vitamin D is especially important',
+        'Anti-inflammatory omega-3 fatty acids',
+        'Adequate fiber for bowel function',
+        'Stay well hydrated'
+      ],
+      focusNutrients: ['vitaminD', 'omega3', 'vitaminB12', 'fiber', 'calcium']
+    }
+  },
+  {
+    id: 'parkinsons',
+    name: "Parkinson's Disease",
+    description: 'Progressive nervous system disorder affecting movement',
+    exerciseRestrictions: {
+      avoid: [],
+      caution: ['Balance exercises - use support', 'Quick movements'],
+      recommended: ['Walking', 'Dancing', 'Tai Chi', 'Boxing (non-contact)', 'Cycling', 'Swimming', 'Stretching'],
+      warnings: [
+        'Exercise is highly beneficial for Parkinsons',
+        'Focus on large, exaggerated movements',
+        'Balance training is important',
+        'Rhythm-based exercise helps with gait',
+        'Dual-task training (exercise + cognitive) is beneficial'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [
+        { nutrient: 'protein', reason: 'Time protein intake around medication (can interfere with levodopa)' }
+      ],
+      recommendations: [
+        'Adequate fiber for constipation',
+        'Stay well hydrated',
+        'Time protein away from levodopa medication',
+        'Antioxidant-rich foods'
+      ],
+      focusNutrients: ['fiber', 'omega3', 'vitaminD', 'coQ10']
+    }
+  },
+  {
+    id: 'epilepsy',
+    name: 'Epilepsy',
+    description: 'Seizure disorder',
+    exerciseRestrictions: {
+      avoid: ['Scuba diving', 'Rock climbing (unsupervised)', 'Swimming alone'],
+      caution: ['Exercise in water - always with supervision', 'Heights', 'Cycling on roads'],
+      recommended: ['Walking', 'Gym machines', 'Group fitness', 'Team sports with awareness'],
+      warnings: [
+        'Exercise generally does not trigger seizures',
+        'Never exercise alone in water',
+        'Wear medical ID',
+        'Inform exercise partners about seizure first aid',
+        'Avoid flashing lights in gyms if photosensitive'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [],
+      recommendations: [
+        'Some benefit from ketogenic diet (under medical supervision)',
+        'Avoid alcohol',
+        'Maintain regular meal times',
+        'Stay hydrated'
+      ],
+      focusNutrients: ['magnesium', 'vitaminB6', 'omega3']
+    }
+  },
+  {
+    id: 'arthritis_rheumatoid',
+    name: 'Rheumatoid Arthritis',
+    description: 'Autoimmune inflammatory arthritis',
+    exerciseRestrictions: {
+      avoid: ['High-impact during flares', 'Heavy weights during flares'],
+      caution: ['All exercise during active flares'],
+      recommended: ['Swimming', 'Water aerobics', 'Gentle yoga', 'Range of motion exercises', 'Walking', 'Cycling'],
+      warnings: [
+        'Exercise during remission, rest during flares',
+        'Low-impact exercise protects joints',
+        'Morning stiffness may require warm-up time',
+        'Strengthen muscles to support joints'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [],
+      recommendations: [
+        'Anti-inflammatory diet is essential',
+        'High omega-3 intake',
+        'Limit processed foods and sugar',
+        'Consider Mediterranean diet pattern'
+      ],
+      focusNutrients: ['omega3', 'vitaminD', 'calcium', 'antioxidants']
+    }
+  },
+  {
+    id: 'ibs',
+    name: 'Irritable Bowel Syndrome',
+    description: 'Chronic digestive disorder with pain and altered bowel habits',
+    exerciseRestrictions: {
+      avoid: [],
+      caution: ['High-intensity exercise may trigger symptoms in some'],
+      recommended: ['Walking', 'Yoga', 'Swimming', 'Moderate cardio', 'Stress-reducing activities'],
+      warnings: [
+        'Exercise helps regulate bowel function',
+        'Avoid eating immediately before exercise',
+        'Know bathroom locations when exercising outdoors',
+        'Stress-reducing exercise particularly beneficial'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [],
+      recommendations: [
+        'Low FODMAP diet may help identify triggers',
+        'Adequate fiber (increase slowly)',
+        'Probiotics may help',
+        'Identify and avoid trigger foods',
+        'Regular meal times'
+      ],
+      focusNutrients: ['fiber', 'probiotics', 'peppermint']
+    }
+  },
+  {
+    id: 'crohns_disease',
+    name: "Crohn's Disease",
+    description: 'Inflammatory bowel disease affecting digestive tract',
+    exerciseRestrictions: {
+      avoid: ['High-intensity during flares'],
+      caution: ['All exercise during active flares'],
+      recommended: ['Walking', 'Swimming', 'Yoga', 'Low-impact activities'],
+      warnings: [
+        'Exercise during remission',
+        'Rest during active flares',
+        'Stay well hydrated',
+        'Know bathroom locations'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [
+        { nutrient: 'fiber', reason: 'May need to limit fiber during flares' }
+      ],
+      recommendations: [
+        'Small, frequent meals',
+        'Adequate protein for healing',
+        'May need vitamin/mineral supplements due to malabsorption',
+        'Low-residue diet during flares'
+      ],
+      focusNutrients: ['vitaminB12', 'iron', 'vitaminD', 'calcium', 'zinc', 'folate']
+    }
+  },
+  {
+    id: 'celiac_disease',
+    name: 'Celiac Disease',
+    description: 'Autoimmune reaction to gluten damaging the small intestine',
+    exerciseRestrictions: {
+      avoid: [],
+      caution: [],
+      recommended: ['All exercise types once gluten-free diet established'],
+      warnings: [
+        'Ensure sports nutrition products are gluten-free',
+        'Watch for hidden gluten in supplements',
+        'May have nutrient deficiencies initially'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [
+        { nutrient: 'gluten', limit: 0, reason: 'Strict gluten-free diet required - zero tolerance' }
+      ],
+      recommendations: [
+        'Strict gluten-free diet is essential',
+        'Check all supplements and medications for gluten',
+        'May need iron, calcium, vitamin D supplementation initially',
+        'Read all food labels carefully'
+      ],
+      focusNutrients: ['iron', 'calcium', 'vitaminD', 'vitaminB12', 'folate', 'fiber']
+    }
+  },
+  {
+    id: 'hearing_impairment',
+    name: 'Hearing Impairment',
+    description: 'Partial or complete hearing loss',
+    exerciseRestrictions: {
+      avoid: [],
+      caution: ['Group classes without visual cues'],
+      recommended: ['All exercise types with appropriate accommodations'],
+      warnings: [
+        'Choose gyms with good visual cues',
+        'Inform instructors of hearing impairment',
+        'Use mirrors to follow along in classes',
+        'Consider one-on-one training initially'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [],
+      recommendations: [
+        'No specific dietary modifications needed',
+        'Standard healthy eating guidelines apply'
+      ],
+      focusNutrients: []
+    }
+  },
+  {
+    id: 'visual_impairment',
+    name: 'Visual Impairment',
+    description: 'Partial or complete vision loss',
+    exerciseRestrictions: {
+      avoid: ['Unfamiliar environments without guidance'],
+      caution: ['New exercises - learn with assistance first'],
+      recommended: ['Tandem cycling', 'Swimming with lane ropes', 'Treadmill (once familiar)', 'Rowing', 'Strength training (machines)'],
+      warnings: [
+        'Familiarize with gym layout with assistance',
+        'Use consistent equipment placement',
+        'Strength machines safer than free weights initially',
+        'Consider guide runners for outdoor cardio'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [],
+      recommendations: [
+        'No specific dietary modifications needed',
+        'Standard healthy eating guidelines apply'
+      ],
+      focusNutrients: ['vitaminA', 'omega3', 'zinc']
+    }
+  },
+  {
+    id: 'autism',
+    name: 'Autism Spectrum',
+    description: 'Neurodevelopmental condition affecting social interaction and sensory processing',
+    exerciseRestrictions: {
+      avoid: [],
+      caution: ['Crowded, noisy gyms may be overwhelming'],
+      recommended: ['Swimming', 'Running', 'Cycling', 'Martial arts', 'Individual sports', 'Yoga'],
+      warnings: [
+        'Consider sensory environment (noise, lights, crowds)',
+        'Routine and predictability important',
+        'May prefer individual over team sports',
+        'Allow for special interests in exercise choice'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [],
+      recommendations: [
+        'Respect food preferences and sensory sensitivities',
+        'Gradual introduction of new foods',
+        'Routine meal times beneficial',
+        'May benefit from omega-3 supplementation'
+      ],
+      focusNutrients: ['omega3', 'vitaminD', 'magnesium', 'zinc']
+    }
+  },
+  {
+    id: 'adhd',
+    name: 'ADHD',
+    description: 'Attention deficit hyperactivity disorder',
+    exerciseRestrictions: {
+      avoid: [],
+      caution: [],
+      recommended: ['Martial arts', 'Swimming', 'Team sports', 'Running', 'Cycling', 'Dance', 'High-intensity activities'],
+      warnings: [
+        'Exercise significantly helps ADHD symptoms',
+        'Morning exercise can improve focus all day',
+        'Complex motor activities are especially beneficial',
+        'Short, varied workouts may work better than long sessions'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [],
+      recommendations: [
+        'Protein at breakfast helps focus',
+        'Omega-3 fatty acids support brain function',
+        'Limit sugar and processed foods',
+        'Regular meal times help with routine'
+      ],
+      focusNutrients: ['omega3', 'protein', 'iron', 'zinc', 'magnesium']
+    }
+  },
+  {
+    id: 'ptsd',
+    name: 'PTSD',
+    description: 'Post-traumatic stress disorder',
+    exerciseRestrictions: {
+      avoid: [],
+      caution: ['Environments that may trigger symptoms'],
+      recommended: ['Yoga', 'Walking in nature', 'Swimming', 'Martial arts', 'Team sports (for connection)'],
+      warnings: [
+        'Exercise helps regulate nervous system',
+        'Mind-body exercises particularly beneficial',
+        'Choose safe, comfortable environments',
+        'Grounding exercises can help if triggered'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [
+        { nutrient: 'caffeine', limit: 200, reason: 'Limit caffeine as it can worsen anxiety symptoms' }
+      ],
+      recommendations: [
+        'Limit caffeine and alcohol',
+        'Anti-inflammatory diet supports healing',
+        'Regular meals help regulate nervous system',
+        'Omega-3s support brain health'
+      ],
+      focusNutrients: ['omega3', 'magnesium', 'vitaminD', 'vitaminB12']
+    }
+  },
+  {
+    id: 'bipolar',
+    name: 'Bipolar Disorder',
+    description: 'Mood disorder with episodes of mania and depression',
+    exerciseRestrictions: {
+      avoid: [],
+      caution: ['Very high intensity during manic episodes may worsen symptoms'],
+      recommended: ['Walking', 'Swimming', 'Yoga', 'Regular moderate cardio', 'Strength training'],
+      warnings: [
+        'Regular exercise helps mood stability',
+        'Maintain consistent exercise routine',
+        'Avoid overexercising during manic episodes',
+        'Morning exercise helps regulate sleep-wake cycle'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [],
+      recommendations: [
+        'Regular meal times support mood stability',
+        'Omega-3 fatty acids',
+        'Limit caffeine and alcohol',
+        'Avoid extreme diets'
+      ],
+      focusNutrients: ['omega3', 'vitaminD', 'magnesium', 'vitaminB12']
+    }
+  },
+  {
+    id: 'eating_disorder_recovery',
+    name: 'Eating Disorder Recovery',
+    description: 'In recovery from anorexia, bulimia, or binge eating disorder',
+    exerciseRestrictions: {
+      avoid: ['Compulsive exercise patterns', 'Excessive cardio', 'Calorie-counting devices during early recovery'],
+      caution: ['All exercise should be approved by treatment team'],
+      recommended: ['Yoga', 'Walking', 'Gentle movement', 'Intuitive movement'],
+      maxIntensity: 'moderate',
+      warnings: [
+        'Exercise should be approved by treatment team',
+        'Focus on joyful movement, not calories burned',
+        'Avoid exercise if medically compromised',
+        'Monitor for return of compulsive patterns'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [],
+      recommendations: [
+        'Follow meal plan from treatment team',
+        'Do not restrict or count calories unless directed',
+        'Regular meals and snacks',
+        'Work with eating disorder dietitian'
+      ],
+      focusNutrients: ['calcium', 'vitaminD', 'iron', 'vitaminB12', 'zinc']
+    }
+  },
+  {
+    id: 'amputation',
+    name: 'Limb Amputation',
+    description: 'Upper or lower limb amputation',
+    exerciseRestrictions: {
+      avoid: [],
+      caution: ['Exercises requiring affected limb - modify appropriately'],
+      recommended: ['Adapted exercises', 'Swimming', 'Seated exercises', 'Resistance training'],
+      warnings: [
+        'Work with physical therapist for appropriate modifications',
+        'Prosthetic users should ensure proper fit before exercise',
+        'Skin care around residual limb is important',
+        'Many exercises can be adapted for single limb use'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [],
+      recommendations: [
+        'Adequate protein for tissue health',
+        'No specific restrictions'
+      ],
+      focusNutrients: ['protein', 'vitaminC', 'zinc']
+    }
+  },
+  {
+    id: 'spinal_cord_injury',
+    name: 'Spinal Cord Injury',
+    description: 'Complete or incomplete spinal cord injury',
+    exerciseRestrictions: {
+      avoid: ['Exercises below level of injury without proper support/equipment'],
+      caution: ['Autonomic dysreflexia risk in high-level injuries', 'Thermoregulation issues'],
+      recommended: ['Upper body exercises', 'Wheelchair sports', 'Swimming with support', 'Handcycling', 'Resistance training'],
+      warnings: [
+        'Know signs of autonomic dysreflexia',
+        'Monitor skin for pressure areas',
+        'Thermoregulation may be impaired',
+        'Work with SCI-experienced trainer or PT'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [],
+      recommendations: [
+        'Adequate fiber and fluid for bowel management',
+        'Calcium and vitamin D for bone health',
+        'May need fewer calories due to reduced muscle mass'
+      ],
+      focusNutrients: ['fiber', 'calcium', 'vitaminD', 'protein']
+    }
+  },
+  {
+    id: 'cerebral_palsy',
+    name: 'Cerebral Palsy',
+    description: 'Group of disorders affecting movement and muscle tone',
+    exerciseRestrictions: {
+      avoid: [],
+      caution: ['High-impact exercises', 'Exercises requiring fine motor control'],
+      recommended: ['Swimming', 'Cycling (adapted)', 'Strength training', 'Stretching', 'Yoga'],
+      warnings: [
+        'Focus on flexibility alongside strength',
+        'Use adapted equipment as needed',
+        'Fatigue management important',
+        'Work with PT for appropriate program'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [],
+      recommendations: [
+        'Texture-modified foods if swallowing difficulties',
+        'Adequate calcium for bone health',
+        'Small frequent meals if eating is tiring'
+      ],
+      focusNutrients: ['calcium', 'vitaminD', 'protein']
+    }
+  },
+  {
+    id: 'down_syndrome',
+    name: 'Down Syndrome',
+    description: 'Genetic condition causing developmental and intellectual delays',
+    exerciseRestrictions: {
+      avoid: ['Contact sports if atlantoaxial instability present'],
+      caution: ['Neck-straining exercises', 'High-impact if heart condition present'],
+      recommended: ['Swimming', 'Walking', 'Dance', 'Special Olympics sports', 'Strength training'],
+      warnings: [
+        'Screen for atlantoaxial instability before contact sports',
+        'May have associated heart conditions - get clearance',
+        'Focus on enjoyment and social aspects',
+        'Keep instructions simple and demonstrate'
+      ]
+    },
+    nutritionAdjustments: {
+      restrictions: [],
+      recommendations: [
+        'Higher rate of celiac disease - consider screening',
+        'Monitor for thyroid issues',
+        'Healthy weight maintenance important'
+      ],
+      focusNutrients: ['fiber', 'calcium', 'vitaminD']
+    }
   }
 ];
 

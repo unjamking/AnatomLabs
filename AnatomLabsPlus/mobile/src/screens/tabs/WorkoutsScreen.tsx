@@ -389,7 +389,7 @@ export default function WorkoutsScreen() {
                   <AnimatedCard onPress={() => handleAddExercise(exercise)} style={styles.exerciseSelectCard}>
                     <View style={styles.exerciseSelectContent}>
                       <Text style={styles.exerciseSelectName}>{exercise.name}</Text>
-                      <Text style={styles.exerciseSelectMuscle}>{exercise.primaryMuscles.join(', ')}</Text>
+                      <Text style={styles.exerciseSelectMuscle}>{exercise.primaryMuscles?.join(', ') || 'Unknown'}</Text>
                     </View>
                     <Ionicons name="add-circle" size={22} color={COLORS.primary} />
                   </AnimatedCard>
@@ -923,6 +923,7 @@ const styles = StyleSheet.create({
   // Tabs
   tabContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
     marginBottom: 16,
   },
@@ -956,6 +957,7 @@ const styles = StyleSheet.create({
   // Stats
   statsRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
     marginBottom: 16,
   },

@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -12,6 +14,10 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
+  FadeIn,
+  FadeOut,
+  SlideInDown,
+  Layout,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
@@ -22,7 +28,7 @@ import {
   AnimatedListItem,
   BlurHeader,
   GlassCard,
-  FadeIn,
+  FadeIn as FadeInComponent,
   SlideIn,
   Skeleton,
   AnimatedProgressRing,
@@ -36,10 +42,37 @@ export default function ReportsScreen() {
   const [injuryRisk, setInjuryRisk] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [reportType, setReportType] = useState<'daily' | 'injury'>('daily');
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
   const scrollY = useSharedValue(0);
   const { trigger } = useHaptics();
+
+  // Format date for display
+  const formatDateDisplay = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const compareDate = new Date(date);
+    compareDate.setHours(0, 0, 0, 0);
+
+    if (compareDate.getTime() === today.getTime()) {
+      return 'Today';
+    }
+
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (compareDate.getTime() === yesterday.getTime()) {
+      return 'Yesterday';
+    }
+
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  // Get date string in YYYY-MM-DD format for API
+  const getDateString = (date: Date) => {
+    return date.toISOString().split('T')[0];
+  };
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -47,27 +80,23 @@ export default function ReportsScreen() {
     },
   });
 
-  // Tab animation
-  const tabIndicator = useSharedValue(0);
-
-  const tabIndicatorStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: tabIndicator.value }],
-  }));
-
   useEffect(() => {
     loadData();
-  }, [reportType]);
+  }, [selectedDate]);
 
   const loadData = async () => {
     try {
       setIsLoading(true);
-      if (reportType === 'daily') {
-        const data = await api.getDailyReport();
-        setReport(data);
-      } else {
-        const data = await api.getInjuryRisk();
-        setInjuryRisk(data);
-      }
+      const dateStr = getDateString(selectedDate);
+
+      // Load both daily report and injury risk in parallel
+      const [dailyData, injuryData] = await Promise.all([
+        api.getDailyReport(dateStr),
+        api.getInjuryRisk(),
+      ]);
+
+      setReport(dailyData);
+      setInjuryRisk(injuryData);
     } catch (error) {
       console.error('Failed to load report:', error);
     } finally {
@@ -83,10 +112,69 @@ export default function ReportsScreen() {
     trigger('success');
   };
 
-  const handleTabChange = (tab: 'daily' | 'injury') => {
+  const handleDateChange = (days: number) => {
     trigger('selection');
-    setReportType(tab);
-    tabIndicator.value = withSpring(tab === 'daily' ? 0 : 170, SPRING_CONFIG.snappy);
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + days);
+    // Don't allow future dates
+    if (newDate <= new Date()) {
+      setSelectedDate(newDate);
+    }
+  };
+
+  const handleDateSelect = (date: Date) => {
+    trigger('selection');
+    setSelectedDate(date);
+    setShowCalendar(false);
+  };
+
+  const toggleSection = (section: string) => {
+    trigger('selection');
+    setExpandedSection(expandedSection === section ? null : section);
+  };
+
+  // Generate calendar days for the current month view
+  const generateCalendarDays = () => {
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startPadding = firstDay.getDay();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const days: Array<{ date: Date | null; isToday: boolean; isSelected: boolean; isFuture: boolean }> = [];
+
+    // Add padding for days before the first of the month
+    for (let i = 0; i < startPadding; i++) {
+      days.push({ date: null, isToday: false, isSelected: false, isFuture: false });
+    }
+
+    // Add all days of the month
+    for (let i = 1; i <= lastDay.getDate(); i++) {
+      const date = new Date(year, month, i);
+      date.setHours(0, 0, 0, 0);
+      const selected = new Date(selectedDate);
+      selected.setHours(0, 0, 0, 0);
+
+      days.push({
+        date,
+        isToday: date.getTime() === today.getTime(),
+        isSelected: date.getTime() === selected.getTime(),
+        isFuture: date > today,
+      });
+    }
+
+    return days;
+  };
+
+  const calendarDays = useMemo(() => generateCalendarDays(), [selectedDate]);
+
+  const changeMonth = (delta: number) => {
+    trigger('selection');
+    const newDate = new Date(selectedDate);
+    newDate.setMonth(newDate.getMonth() + delta);
+    setSelectedDate(newDate);
   };
 
   const getRiskColor = (level: string) => {
@@ -118,10 +206,51 @@ export default function ReportsScreen() {
     }
   };
 
+  const getRiskDescription = (level: string, needsRest: boolean) => {
+    if (needsRest) return 'Rest recommended - your muscles need recovery time';
+    switch (level) {
+      case 'low':
+        return 'All systems go! Your body is well-recovered';
+      case 'moderate':
+        return 'Light training recommended - some muscle groups need rest';
+      case 'high':
+        return 'Caution advised - high fatigue detected';
+      default:
+        return 'Keep training smart';
+    }
+  };
+
+  // Calculate daily score based on all metrics
+  const getDailyScore = () => {
+    if (!report) return 0;
+
+    const nutritionScore = Math.min(report.nutrition.adherence, 100);
+    const activityScore = Math.min((report.activity.steps / 10000) * 100, 100);
+    const trainingScore = report.training.workoutsCompleted > 0 ? 100 : 50;
+    const recoveryScore = injuryRisk?.overallRisk === 'low' ? 100 :
+                          injuryRisk?.overallRisk === 'moderate' ? 70 : 40;
+
+    return Math.round((nutritionScore + activityScore + trainingScore + recoveryScore) / 4);
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return COLORS.success;
+    if (score >= 60) return COLORS.warning;
+    return COLORS.error;
+  };
+
+  const getScoreLabel = (score: number) => {
+    if (score >= 90) return 'Excellent';
+    if (score >= 80) return 'Great';
+    if (score >= 70) return 'Good';
+    if (score >= 60) return 'Fair';
+    return 'Needs Work';
+  };
+
   return (
     <View style={styles.container}>
       <BlurHeader
-        title="Reports"
+        title="Daily Report"
         scrollY={scrollY}
       />
 
@@ -138,284 +267,481 @@ export default function ReportsScreen() {
           />
         }
       >
-        <SlideIn direction="left" delay={0}>
-          <Text style={styles.title}>Your Reports</Text>
-        </SlideIn>
-
-        {/* Tab Selector */}
-        <FadeIn delay={100}>
-          <View style={styles.tabs}>
+        {/* Date Selector */}
+        <FadeInComponent delay={50}>
+          <View style={styles.dateSelector}>
             <TouchableOpacity
-              style={[styles.tab, reportType === 'daily' && styles.tabActive]}
-              onPress={() => handleTabChange('daily')}
+              style={styles.dateArrow}
+              onPress={() => handleDateChange(-1)}
             >
-              <Ionicons
-                name="calendar-outline"
-                size={18}
-                color={reportType === 'daily' ? '#fff' : COLORS.textSecondary}
-              />
-              <Text style={[styles.tabText, reportType === 'daily' && styles.tabTextActive]}>
-                Daily
-              </Text>
+              <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
             </TouchableOpacity>
+
             <TouchableOpacity
-              style={[styles.tab, reportType === 'injury' && styles.tabActive]}
-              onPress={() => handleTabChange('injury')}
+              style={styles.dateDisplay}
+              onPress={() => setShowCalendar(true)}
+            >
+              <Ionicons name="calendar-outline" size={18} color={COLORS.primary} />
+              <Text style={styles.dateText}>{formatDateDisplay(selectedDate)}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.dateArrow, selectedDate.toDateString() === new Date().toDateString() && styles.dateArrowDisabled]}
+              onPress={() => handleDateChange(1)}
+              disabled={selectedDate.toDateString() === new Date().toDateString()}
             >
               <Ionicons
-                name="shield-outline"
-                size={18}
-                color={reportType === 'injury' ? '#fff' : COLORS.textSecondary}
+                name="chevron-forward"
+                size={24}
+                color={selectedDate.toDateString() === new Date().toDateString() ? COLORS.textTertiary : COLORS.primary}
               />
-              <Text style={[styles.tabText, reportType === 'injury' && styles.tabTextActive]}>
-                Injury Risk
-              </Text>
             </TouchableOpacity>
           </View>
-        </FadeIn>
+        </FadeInComponent>
 
         {isLoading ? (
           <View style={styles.skeletonContainer}>
-            <Skeleton width="100%" height={200} borderRadius={16} style={{ marginBottom: 16 }} />
+            <Skeleton width="100%" height={180} borderRadius={16} style={{ marginBottom: 16 }} />
             <Skeleton width="100%" height={150} borderRadius={16} style={{ marginBottom: 16 }} />
             <Skeleton width="100%" height={150} borderRadius={16} />
           </View>
-        ) : reportType === 'daily' && report ? (
+        ) : report ? (
           <>
-            {/* Nutrition Summary */}
+            {/* Daily Score Card */}
+            <SlideIn direction="bottom" delay={100}>
+              <GlassCard
+                style={styles.scoreCardContainer}
+                contentStyle={styles.scoreCardContent}
+                borderGlow
+                glowColor={getScoreColor(getDailyScore())}
+              >
+                <View style={styles.scoreHeader}>
+                  <Text style={styles.scoreLabel}>Daily Score</Text>
+                  <View style={[styles.scoreBadge, { backgroundColor: getScoreColor(getDailyScore()) + '20' }]}>
+                    <Text style={[styles.scoreBadgeText, { color: getScoreColor(getDailyScore()) }]}>
+                      {getScoreLabel(getDailyScore())}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.scoreCircleContainer}>
+                  <AnimatedProgressRing
+                    progress={getDailyScore()}
+                    size={120}
+                    strokeWidth={10}
+                    color={getScoreColor(getDailyScore())}
+                    label=""
+                    value={`${getDailyScore()}`}
+                    delay={200}
+                  />
+                </View>
+                <View style={styles.scoreBreakdown}>
+                  <View style={styles.scoreItem}>
+                    <Ionicons name="nutrition-outline" size={16} color={COLORS.primary} />
+                    <Text style={styles.scoreItemText}>Nutrition</Text>
+                  </View>
+                  <View style={styles.scoreItem}>
+                    <Ionicons name="footsteps-outline" size={16} color={COLORS.info} />
+                    <Text style={styles.scoreItemText}>Activity</Text>
+                  </View>
+                  <View style={styles.scoreItem}>
+                    <Ionicons name="barbell-outline" size={16} color={COLORS.success} />
+                    <Text style={styles.scoreItemText}>Training</Text>
+                  </View>
+                  <View style={styles.scoreItem}>
+                    <Ionicons name="shield-checkmark-outline" size={16} color={getRiskColor(injuryRisk?.overallRisk || 'low')} />
+                    <Text style={styles.scoreItemText}>Recovery</Text>
+                  </View>
+                </View>
+              </GlassCard>
+            </SlideIn>
+
+            {/* Recovery Status - Expandable */}
             <SlideIn direction="bottom" delay={150}>
-              <GlassCard style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Ionicons name="nutrition-outline" size={20} color={COLORS.primary} />
-                  <Text style={styles.sectionTitle}>Nutrition Summary</Text>
-                </View>
-                <View style={styles.nutritionGrid}>
-                  {[
-                    { label: 'Calories', value: report.nutrition.calories, target: report.nutrition.targetCalories, color: COLORS.primary },
-                    { label: 'Protein', value: report.nutrition.protein, target: report.nutrition.targetProtein, unit: 'g', color: COLORS.primary },
-                    { label: 'Carbs', value: report.nutrition.carbs, target: report.nutrition.targetCarbs, unit: 'g', color: COLORS.info },
-                    { label: 'Fat', value: report.nutrition.fat, target: report.nutrition.targetFat, unit: 'g', color: COLORS.warning },
-                  ].map((item, index) => (
-                    <View key={item.label} style={styles.nutritionItem}>
-                      <AnimatedProgressRing
-                        progress={(item.value / item.target) * 100}
-                        size={60}
-                        strokeWidth={5}
-                        color={item.color}
-                        label={item.label}
-                        value={`${Math.round(item.value)}${item.unit || ''}`}
-                        delay={200 + index * 100}
-                      />
-                      <Text style={styles.nutritionTarget}>
-                        / {Math.round(item.target)}{item.unit || ''}
-                      </Text>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => toggleSection('recovery')}
+              >
+                <GlassCard
+                  style={styles.sectionCardContainer}
+                  contentStyle={styles.sectionCardContent}
+                >
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={styles.sectionHeaderLeft}>
+                      <View style={[styles.sectionIcon, { backgroundColor: getRiskColor(injuryRisk?.overallRisk || 'low') + '20' }]}>
+                        <Ionicons
+                          name={getRiskIcon(injuryRisk?.overallRisk || 'low') as any}
+                          size={24}
+                          color={getRiskColor(injuryRisk?.overallRisk || 'low')}
+                        />
+                      </View>
+                      <View style={styles.sectionHeaderText}>
+                        <Text style={styles.sectionTitle}>Recovery Status</Text>
+                        <Text style={[styles.sectionSubtitle, { color: getRiskColor(injuryRisk?.overallRisk || 'low') }]}>
+                          {(injuryRisk?.overallRisk || 'low').replace('_', ' ').toUpperCase()} RISK
+                        </Text>
+                      </View>
                     </View>
-                  ))}
-                </View>
-                <View style={styles.adherenceContainer}>
-                  <View style={styles.adherenceBar}>
                     <Animated.View
                       style={[
-                        styles.adherenceBarFill,
-                        { width: `${report.nutrition.adherence}%` },
+                        styles.expandIcon,
+                        expandedSection === 'recovery' && styles.expandIconRotated
                       ]}
+                    >
+                      <Ionicons
+                        name="chevron-down"
+                        size={24}
+                        color={COLORS.textSecondary}
+                      />
+                    </Animated.View>
+                  </View>
+
+                  <Text style={styles.sectionDescription}>
+                    {getRiskDescription(injuryRisk?.overallRisk || 'low', injuryRisk?.needsRestDay)}
+                  </Text>
+
+                  {/* Expanded Content */}
+                  {expandedSection === 'recovery' && (
+                    <Animated.View
+                      entering={FadeIn.duration(200)}
+                      exiting={FadeOut.duration(150)}
+                      style={styles.expandedContent}
+                    >
+                      {/* Recommendations */}
+                      {injuryRisk?.recommendations && injuryRisk.recommendations.length > 0 && (
+                        <View style={styles.expandedSection}>
+                          <Text style={styles.expandedSectionTitle}>Recommendations</Text>
+                          {injuryRisk.recommendations.map((rec: string, index: number) => (
+                            <View key={index} style={styles.recommendationItem}>
+                              <Ionicons name="checkmark-circle" size={18} color={COLORS.success} />
+                              <Text style={styles.recommendationText}>{rec}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {/* Muscles at Risk */}
+                      {injuryRisk?.musclesAtRisk && injuryRisk.musclesAtRisk.length > 0 && (
+                        <View style={styles.expandedSection}>
+                          <Text style={styles.expandedSectionTitle}>Muscles Needing Rest</Text>
+                          {injuryRisk.musclesAtRisk.map((muscleRisk: any, index: number) => (
+                            <View key={index} style={styles.muscleRiskItem}>
+                              <View style={styles.muscleRiskLeft}>
+                                <Ionicons name="body-outline" size={18} color={COLORS.textSecondary} />
+                                <Text style={styles.muscleRiskName}>
+                                  {muscleRisk.muscle?.name || 'Unknown'}
+                                </Text>
+                              </View>
+                              <View style={[styles.riskBadge, { backgroundColor: `${getRiskColor(muscleRisk.riskLevel)}20` }]}>
+                                <Text style={[styles.riskBadgeText, { color: getRiskColor(muscleRisk.riskLevel) }]}>
+                                  {muscleRisk.riskLevel?.replace('_', ' ').toUpperCase()}
+                                </Text>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {/* No issues message */}
+                      {(!injuryRisk?.musclesAtRisk || injuryRisk.musclesAtRisk.length === 0) &&
+                       (!injuryRisk?.recommendations || injuryRisk.recommendations.length === 0) && (
+                        <View style={styles.noIssuesContainer}>
+                          <Ionicons name="thumbs-up" size={32} color={COLORS.success} />
+                          <Text style={styles.noIssuesText}>
+                            No muscle fatigue detected. You're ready for your next workout!
+                          </Text>
+                        </View>
+                      )}
+                    </Animated.View>
+                  )}
+                </GlassCard>
+              </TouchableOpacity>
+            </SlideIn>
+
+            {/* Nutrition Summary - Expandable */}
+            <SlideIn direction="bottom" delay={200}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => toggleSection('nutrition')}
+              >
+                <GlassCard
+                  style={styles.sectionCardContainer}
+                  contentStyle={styles.sectionCardContent}
+                >
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={styles.sectionHeaderLeft}>
+                      <View style={[styles.sectionIcon, { backgroundColor: COLORS.primary + '20' }]}>
+                        <Ionicons name="nutrition-outline" size={24} color={COLORS.primary} />
+                      </View>
+                      <View style={styles.sectionHeaderText}>
+                        <Text style={styles.sectionTitle}>Nutrition</Text>
+                        <Text style={styles.sectionSubtitle}>
+                          {Math.round(report.nutrition.calories)} / {Math.round(report.nutrition.targetCalories)} cal
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.sectionHeaderRight}>
+                      <Text style={[styles.adherencePercent, { color: report.nutrition.adherence >= 80 ? COLORS.success : COLORS.warning }]}>
+                        {Math.round(report.nutrition.adherence)}%
+                      </Text>
+                      <Ionicons
+                        name="chevron-down"
+                        size={24}
+                        color={COLORS.textSecondary}
+                        style={expandedSection === 'nutrition' ? styles.expandIconRotated : undefined}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Progress bar */}
+                  <View style={styles.progressBarContainer}>
+                    <View style={styles.progressBar}>
+                      <Animated.View
+                        style={[
+                          styles.progressBarFill,
+                          {
+                            width: `${Math.min(report.nutrition.adherence, 100)}%`,
+                            backgroundColor: report.nutrition.adherence >= 80 ? COLORS.success : COLORS.warning
+                          },
+                        ]}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Expanded Content */}
+                  {expandedSection === 'nutrition' && (
+                    <Animated.View
+                      entering={FadeIn.duration(200)}
+                      exiting={FadeOut.duration(150)}
+                      style={styles.expandedContent}
+                    >
+                      <View style={styles.macroGrid}>
+                        {[
+                          { label: 'Protein', value: report.nutrition.protein, target: report.nutrition.targetProtein, unit: 'g', color: COLORS.primary },
+                          { label: 'Carbs', value: report.nutrition.carbs, target: report.nutrition.targetCarbs, unit: 'g', color: COLORS.info },
+                          { label: 'Fat', value: report.nutrition.fat, target: report.nutrition.targetFat, unit: 'g', color: COLORS.warning },
+                        ].map((item) => (
+                          <View key={item.label} style={styles.macroItem}>
+                            <View style={styles.macroHeader}>
+                              <Text style={styles.macroLabel}>{item.label}</Text>
+                              <Text style={[styles.macroValue, { color: item.color }]}>
+                                {Math.round(item.value)}{item.unit}
+                              </Text>
+                            </View>
+                            <View style={styles.macroBar}>
+                              <View
+                                style={[
+                                  styles.macroBarFill,
+                                  {
+                                    width: `${Math.min((item.value / item.target) * 100, 100)}%`,
+                                    backgroundColor: item.color
+                                  }
+                                ]}
+                              />
+                            </View>
+                            <Text style={styles.macroTarget}>Target: {Math.round(item.target)}{item.unit}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </Animated.View>
+                  )}
+                </GlassCard>
+              </TouchableOpacity>
+            </SlideIn>
+
+            {/* Activity Summary - Expandable */}
+            <SlideIn direction="bottom" delay={250}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => toggleSection('activity')}
+              >
+                <GlassCard
+                  style={styles.sectionCardContainer}
+                  contentStyle={styles.sectionCardContent}
+                >
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={styles.sectionHeaderLeft}>
+                      <View style={[styles.sectionIcon, { backgroundColor: COLORS.info + '20' }]}>
+                        <Ionicons name="fitness-outline" size={24} color={COLORS.info} />
+                      </View>
+                      <View style={styles.sectionHeaderText}>
+                        <Text style={styles.sectionTitle}>Activity</Text>
+                        <Text style={styles.sectionSubtitle}>
+                          {report.activity.steps.toLocaleString()} steps
+                        </Text>
+                      </View>
+                    </View>
+                    <Ionicons
+                      name="chevron-down"
+                      size={24}
+                      color={COLORS.textSecondary}
+                      style={expandedSection === 'activity' ? styles.expandIconRotated : undefined}
                     />
                   </View>
-                  <Text style={styles.adherenceText}>
-                    {Math.round(report.nutrition.adherence)}% adherence
-                  </Text>
-                </View>
-              </GlassCard>
+
+                  {/* Expanded Content */}
+                  {expandedSection === 'activity' && (
+                    <Animated.View
+                      entering={FadeIn.duration(200)}
+                      exiting={FadeOut.duration(150)}
+                      style={styles.expandedContent}
+                    >
+                      <View style={styles.activityGrid}>
+                        {[
+                          { icon: 'footsteps-outline', label: 'Steps', value: report.activity.steps.toLocaleString(), color: COLORS.info },
+                          { icon: 'flame-outline', label: 'Calories Burned', value: `${Math.round(report.activity.caloriesBurned)} cal`, color: COLORS.primary },
+                          { icon: 'water-outline', label: 'Water Intake', value: `${report.activity.waterIntake} ml`, color: '#3498db' },
+                          { icon: 'moon-outline', label: 'Sleep', value: `${report.activity.sleepHours} hours`, color: '#9b59b6' },
+                        ].map((item, index) => (
+                          <View key={item.label} style={styles.activityItem}>
+                            <View style={[styles.activityIcon, { backgroundColor: item.color + '20' }]}>
+                              <Ionicons name={item.icon as any} size={22} color={item.color} />
+                            </View>
+                            <View style={styles.activityInfo}>
+                              <Text style={styles.activityLabel}>{item.label}</Text>
+                              <Text style={[styles.activityValue, { color: item.color }]}>{item.value}</Text>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    </Animated.View>
+                  )}
+                </GlassCard>
+              </TouchableOpacity>
             </SlideIn>
 
-            {/* Activity */}
-            <SlideIn direction="bottom" delay={250}>
-              <GlassCard style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Ionicons name="fitness-outline" size={20} color={COLORS.info} />
-                  <Text style={styles.sectionTitle}>Activity</Text>
+            {/* Training Summary */}
+            <SlideIn direction="bottom" delay={300}>
+              <GlassCard
+                style={styles.sectionCardContainer}
+                contentStyle={styles.sectionCardContent}
+              >
+                <View style={styles.sectionHeaderRow}>
+                  <View style={styles.sectionHeaderLeft}>
+                    <View style={[styles.sectionIcon, { backgroundColor: COLORS.success + '20' }]}>
+                      <Ionicons name="barbell-outline" size={24} color={COLORS.success} />
+                    </View>
+                    <View style={styles.sectionHeaderText}>
+                      <Text style={styles.sectionTitle}>Training</Text>
+                      <Text style={styles.sectionSubtitle}>
+                        {report.training.workoutsCompleted} workout{report.training.workoutsCompleted !== 1 ? 's' : ''} completed
+                      </Text>
+                    </View>
+                  </View>
                 </View>
-                <View style={styles.activityGrid}>
-                  {[
-                    { icon: 'footsteps-outline', label: 'Steps', value: report.activity.steps.toLocaleString(), color: COLORS.info },
-                    { icon: 'flame-outline', label: 'Burned', value: `${Math.round(report.activity.caloriesBurned)}`, color: COLORS.primary },
-                    { icon: 'water-outline', label: 'Water', value: `${report.activity.waterIntake}ml`, color: COLORS.info },
-                    { icon: 'moon-outline', label: 'Sleep', value: `${report.activity.sleepHours}h`, color: '#9b59b6' },
-                  ].map((item, index) => (
-                    <AnimatedCard key={item.label} delay={300 + index * 50} pressable={false} style={styles.activityItem}>
-                      <Ionicons name={item.icon as any} size={24} color={item.color} />
-                      <Text style={[styles.activityValue, { color: item.color }]}>{item.value}</Text>
-                      <Text style={styles.activityLabel}>{item.label}</Text>
-                    </AnimatedCard>
-                  ))}
-                </View>
-              </GlassCard>
-            </SlideIn>
 
-            {/* Training */}
-            <SlideIn direction="bottom" delay={350}>
-              <GlassCard style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Ionicons name="barbell-outline" size={20} color={COLORS.success} />
-                  <Text style={styles.sectionTitle}>Training</Text>
-                </View>
                 <View style={styles.trainingStats}>
                   <View style={styles.trainingStat}>
-                    <Text style={styles.trainingValue}>{report.training.workoutsCompleted}</Text>
+                    <Text style={[styles.trainingValue, { color: COLORS.success }]}>
+                      {report.training.workoutsCompleted}
+                    </Text>
                     <Text style={styles.trainingLabel}>Workouts</Text>
                   </View>
+                  <View style={styles.statDivider} />
                   <View style={styles.trainingStat}>
-                    <Text style={styles.trainingValue}>{report.training.totalVolume}</Text>
+                    <Text style={[styles.trainingValue, { color: COLORS.info }]}>
+                      {report.training.totalVolume}
+                    </Text>
                     <Text style={styles.trainingLabel}>Total Sets</Text>
                   </View>
                 </View>
-                {report.training.musclesTrained.length > 0 && (
-                  <View style={styles.musclesTrained}>
-                    <Text style={styles.musclesTrainedLabel}>Muscles trained:</Text>
-                    <View style={styles.musclesTags}>
-                      {report.training.musclesTrained.map((muscle, i) => (
-                        <View key={i} style={styles.muscleTag}>
-                          <Text style={styles.muscleTagText}>{muscle}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                )}
               </GlassCard>
             </SlideIn>
 
-            {/* Injury Risk Overview */}
-            {report.injuryRisk && (
-              <SlideIn direction="bottom" delay={450}>
-                <GlassCard
-                  style={[styles.riskCard, { borderColor: getRiskColor(report.injuryRisk.overallRisk) }]}
-                  borderGlow
-                  glowColor={getRiskColor(report.injuryRisk.overallRisk)}
-                >
-                  <Ionicons
-                    name={getRiskIcon(report.injuryRisk.overallRisk) as any}
-                    size={32}
-                    color={getRiskColor(report.injuryRisk.overallRisk)}
-                  />
-                  <Text style={[styles.riskLevel, { color: getRiskColor(report.injuryRisk.overallRisk) }]}>
-                    {report.injuryRisk.overallRisk.replace('_', ' ').toUpperCase()}
-                  </Text>
-                  <Text style={styles.riskText}>
-                    {report.injuryRisk.needsRestDay
-                      ? 'Consider taking a rest day'
-                      : 'You can continue training'}
-                  </Text>
-                </GlassCard>
-              </SlideIn>
-            )}
-          </>
-        ) : injuryRisk ? (
-          <>
-            {/* Overall Risk */}
-            <SlideIn direction="bottom" delay={150}>
-              <GlassCard
-                style={styles.mainRiskCard}
-                borderGlow
-                glowColor={getRiskColor(injuryRisk.overallRisk)}
-              >
-                <Ionicons
-                  name={getRiskIcon(injuryRisk.overallRisk) as any}
-                  size={48}
-                  color={getRiskColor(injuryRisk.overallRisk)}
-                />
-                <Text style={[styles.mainRiskLevel, { color: getRiskColor(injuryRisk.overallRisk) }]}>
-                  {injuryRisk.overallRisk?.replace('_', ' ').toUpperCase() || 'LOW'}
-                </Text>
-                <Text style={styles.mainRiskText}>
-                  {injuryRisk.needsRestDay ? 'Rest day recommended' : 'Safe to train'}
-                </Text>
-              </GlassCard>
-            </SlideIn>
-
-            {/* Recommendations */}
-            {injuryRisk.recommendations && injuryRisk.recommendations.length > 0 && (
-              <FadeIn delay={250}>
-                <Text style={styles.subsectionTitle}>Recommendations</Text>
-                {injuryRisk.recommendations.map((rec: string, index: number) => (
-                  <AnimatedListItem key={index} index={index} enterFrom="right">
-                    <GlassCard style={styles.recommendationCard}>
-                      <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
-                      <Text style={styles.recommendationText}>{rec}</Text>
-                    </GlassCard>
-                  </AnimatedListItem>
-                ))}
-              </FadeIn>
-            )}
-
-            {/* Muscles at Risk */}
-            {injuryRisk.musclesAtRisk && injuryRisk.musclesAtRisk.length > 0 && (
-              <FadeIn delay={350}>
-                <Text style={styles.subsectionTitle}>Muscles at Risk</Text>
-                {injuryRisk.musclesAtRisk.map((muscleRisk: any, index: number) => (
-                  <AnimatedListItem key={index} index={index} enterFrom="bottom">
-                    <GlassCard style={styles.muscleRiskCard}>
-                      <View style={styles.muscleRiskHeader}>
-                        <View style={styles.muscleRiskInfo}>
-                          <Ionicons name="body-outline" size={20} color={COLORS.textSecondary} />
-                          <Text style={styles.muscleRiskName}>
-                            {muscleRisk.muscle?.name || 'Unknown'}
-                          </Text>
-                        </View>
-                        <View style={[styles.riskBadge, { backgroundColor: `${getRiskColor(muscleRisk.riskLevel)}20` }]}>
-                          <Text style={[styles.riskBadgeText, { color: getRiskColor(muscleRisk.riskLevel) }]}>
-                            {muscleRisk.riskLevel?.replace('_', ' ').toUpperCase()}
-                          </Text>
-                        </View>
-                      </View>
-                      <View style={styles.muscleRiskStats}>
-                        <View style={styles.muscleRiskStat}>
-                          <Ionicons name="repeat-outline" size={14} color={COLORS.textTertiary} />
-                          <Text style={styles.muscleRiskStatText}>
-                            Used {muscleRisk.usageCount}x recently
-                          </Text>
-                        </View>
-                        {muscleRisk.lastTrained && (
-                          <View style={styles.muscleRiskStat}>
-                            <Ionicons name="time-outline" size={14} color={COLORS.textTertiary} />
-                            <Text style={styles.muscleRiskStatText}>
-                              {muscleRisk.hoursSinceTraining}h ago
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    </GlassCard>
-                  </AnimatedListItem>
-                ))}
-              </FadeIn>
-            )}
-
-            {/* Info Box */}
-            <SlideIn direction="bottom" delay={450}>
-              <GlassCard style={styles.infoBox}>
-                <View style={styles.infoHeader}>
-                  <Ionicons name="information-circle" size={20} color={COLORS.info} />
-                  <Text style={styles.infoTitle}>About Injury Prevention</Text>
+            {/* Quick Tips */}
+            <SlideIn direction="bottom" delay={350}>
+              <GlassCard style={styles.tipsCard}>
+                <View style={styles.tipsHeader}>
+                  <Ionicons name="bulb-outline" size={20} color={COLORS.warning} />
+                  <Text style={styles.tipsTitle}>Daily Insight</Text>
                 </View>
-                <Text style={styles.infoText}>
-                  This system tracks muscle usage patterns and recovery time to detect
-                  overtraining. Recommendations are based on:{'\n\n'}
-                  • Muscle recovery time (24-72h depending on muscle group){'\n'}
-                  • Training frequency and volume{'\n'}
-                  • Cumulative fatigue patterns{'\n'}
-                  • Sport-specific overuse risks
+                <Text style={styles.tipsText}>
+                  {getDailyScore() >= 80
+                    ? "Great job today! You're hitting your targets consistently. Keep up the momentum!"
+                    : getDailyScore() >= 60
+                    ? "Good progress! Focus on improving your nutrition adherence for better results."
+                    : "Room for improvement. Try to hit your step goal and track your meals more consistently."}
                 </Text>
               </GlassCard>
             </SlideIn>
           </>
         ) : (
-          <FadeIn delay={200}>
-            <GlassCard style={styles.emptyCard}>
+          <FadeInComponent delay={200}>
+            <GlassCard style={styles.emptyCard} contentStyle={styles.emptyCardContent}>
               <Ionicons name="document-text-outline" size={48} color={COLORS.textSecondary} />
-              <Text style={styles.emptyText}>No data available</Text>
+              <Text style={styles.emptyText}>No data available for this date</Text>
             </GlassCard>
-          </FadeIn>
+          </FadeInComponent>
         )}
       </Animated.ScrollView>
+
+      {/* Calendar Modal */}
+      <Modal
+        visible={showCalendar}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCalendar(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowCalendar(false)}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.calendarContainer}>
+              <View style={styles.calendarHeader}>
+                <TouchableOpacity onPress={() => changeMonth(-1)}>
+                  <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
+                </TouchableOpacity>
+                <Text style={styles.calendarTitle}>
+                  {selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </Text>
+                <TouchableOpacity onPress={() => changeMonth(1)}>
+                  <Ionicons name="chevron-forward" size={24} color={COLORS.primary} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.calendarWeekdays}>
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                  <Text key={day} style={styles.weekdayText}>{day}</Text>
+                ))}
+              </View>
+
+              <View style={styles.calendarGrid}>
+                {calendarDays.map((day, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.calendarDay,
+                      day.isSelected && styles.calendarDaySelected,
+                      day.isToday && !day.isSelected && styles.calendarDayToday,
+                    ]}
+                    onPress={() => day.date && !day.isFuture && handleDateSelect(day.date)}
+                    disabled={!day.date || day.isFuture}
+                  >
+                    <Text
+                      style={[
+                        styles.calendarDayText,
+                        day.isSelected && styles.calendarDayTextSelected,
+                        day.isFuture && styles.calendarDayTextFuture,
+                        !day.date && styles.calendarDayTextEmpty,
+                      ]}
+                    >
+                      {day.date?.getDate() || ''}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TouchableOpacity
+                style={styles.todayButton}
+                onPress={() => handleDateSelect(new Date())}
+              >
+                <Text style={styles.todayButtonText}>Go to Today</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -429,229 +755,211 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 140,
+    paddingTop: 120,
     paddingHorizontal: 20,
     paddingBottom: 100,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 20,
+  skeletonContainer: {
+    marginTop: 10,
   },
-  tabs: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    gap: 12,
-  },
-  tab: {
-    flex: 1,
+  // Date Selector
+  dateSelector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 14,
+    marginBottom: 20,
+    gap: 12,
+  },
+  dateArrow: {
+    padding: 8,
+  },
+  dateArrowDisabled: {
+    opacity: 0.3,
+  },
+  dateDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.cardBackground,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: COLORS.border,
     gap: 8,
   },
-  tabActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  tabText: {
-    color: COLORS.textSecondary,
-    fontSize: 15,
+  dateText: {
+    fontSize: 16,
     fontWeight: '600',
+    color: COLORS.text,
   },
-  tabTextActive: {
-    color: '#fff',
-  },
-  skeletonContainer: {
-    marginTop: 10,
-  },
-  section: {
+  // Score Card
+  scoreCardContainer: {
     marginBottom: 16,
   },
-  sectionHeader: {
+  scoreCardContent: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+  },
+  scoreHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
     marginBottom: 16,
-    gap: 8,
   },
-  sectionTitle: {
+  scoreLabel: {
     fontSize: 18,
     fontWeight: '600',
     color: COLORS.text,
   },
-  nutritionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-around',
-    marginBottom: 16,
-  },
-  nutritionItem: {
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  nutritionTarget: {
-    fontSize: 11,
-    color: COLORS.textTertiary,
-    marginTop: 4,
-  },
-  adherenceContainer: {
-    marginTop: 8,
-  },
-  adherenceBar: {
-    height: 8,
-    backgroundColor: COLORS.cardBackgroundLight,
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  adherenceBarFill: {
-    height: '100%',
-    backgroundColor: COLORS.success,
-    borderRadius: 4,
-  },
-  adherenceText: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-  },
-  activityGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  activityItem: {
-    flex: 1,
-    minWidth: '45%',
-    alignItems: 'center',
-    padding: 16,
-  },
-  activityValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  activityLabel: {
-    fontSize: 12,
-    color: COLORS.textTertiary,
-  },
-  trainingStats: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 16,
-  },
-  trainingStat: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-    padding: 16,
+  scoreBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     borderRadius: 12,
   },
-  trainingValue: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: COLORS.success,
-  },
-  trainingLabel: {
+  scoreBadgeText: {
     fontSize: 12,
-    color: COLORS.textSecondary,
-    marginTop: 4,
+    fontWeight: '700',
   },
-  musclesTrained: {
-    marginTop: 8,
+  scoreCircleContainer: {
+    marginVertical: 8,
   },
-  musclesTrainedLabel: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    marginBottom: 8,
-  },
-  musclesTags: {
+  scoreBreakdown: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  muscleTag: {
-    backgroundColor: `${COLORS.success}20`,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  muscleTagText: {
-    fontSize: 12,
-    color: COLORS.success,
-    fontWeight: '600',
-  },
-  riskCard: {
-    alignItems: 'center',
-    padding: 24,
-    borderWidth: 2,
-  },
-  riskLevel: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  riskText: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-  },
-  mainRiskCard: {
-    alignItems: 'center',
-    padding: 32,
-    marginBottom: 24,
-  },
-  mainRiskLevel: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    justifyContent: 'space-around',
+    width: '100%',
     marginTop: 16,
-    marginBottom: 8,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
   },
-  mainRiskText: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-  },
-  subsectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 12,
-    marginTop: 8,
-  },
-  recommendationCard: {
-    flexDirection: 'row',
+  scoreItem: {
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 10,
+    gap: 4,
   },
-  recommendationText: {
-    fontSize: 14,
+  scoreItemText: {
+    fontSize: 11,
     color: COLORS.textSecondary,
-    flex: 1,
   },
-  muscleRiskCard: {
-    marginBottom: 10,
+  // Section Cards
+  sectionCardContainer: {
+    marginBottom: 12,
   },
-  muscleRiskHeader: {
+  sectionCardContent: {
+    padding: 16,
+  },
+  sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
   },
-  muscleRiskInfo: {
+  sectionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  sectionHeaderRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  muscleRiskName: {
+  sectionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionHeaderText: {
+    flex: 1,
+  },
+  sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
+    color: COLORS.text,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginTop: 12,
+    lineHeight: 20,
+  },
+  expandIcon: {
+    transform: [{ rotate: '0deg' }],
+  },
+  expandIconRotated: {
+    transform: [{ rotate: '180deg' }],
+  },
+  adherencePercent: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  // Progress Bar
+  progressBarContainer: {
+    marginTop: 12,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: COLORS.cardBackgroundLight,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  // Expanded Content
+  expandedContent: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  expandedSection: {
+    marginBottom: 16,
+  },
+  expandedSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 10,
+  },
+  // Recommendations
+  recommendationItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 8,
+  },
+  recommendationText: {
+    flex: 1,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
+  },
+  // Muscle Risk
+  muscleRiskItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  muscleRiskLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  muscleRiskName: {
+    fontSize: 14,
+    fontWeight: '500',
     color: COLORS.text,
   },
   riskBadge: {
@@ -660,49 +968,228 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   riskBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
   },
-  muscleRiskStats: {
-    flexDirection: 'row',
+  noIssuesContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  noIssuesText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  // Macro Grid
+  macroGrid: {
     gap: 16,
   },
-  muscleRiskStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  macroItem: {
+    gap: 6,
   },
-  muscleRiskStatText: {
-    fontSize: 13,
+  macroHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  macroLabel: {
+    fontSize: 14,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  macroValue: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  macroBar: {
+    height: 8,
+    backgroundColor: COLORS.cardBackgroundLight,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  macroBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  macroTarget: {
+    fontSize: 11,
     color: COLORS.textTertiary,
   },
-  infoBox: {
+  // Activity Grid
+  activityGrid: {
+    gap: 12,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  activityIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityInfo: {
+    flex: 1,
+  },
+  activityLabel: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
+  activityValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  // Training Stats
+  trainingStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  trainingStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: COLORS.border,
+  },
+  trainingValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  trainingLabel: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 4,
+  },
+  // Tips Card
+  tipsCard: {
+    marginTop: 4,
     marginBottom: 20,
   },
-  infoHeader: {
+  tipsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  infoTitle: {
-    fontSize: 16,
+  tipsTitle: {
+    fontSize: 14,
     fontWeight: '600',
     color: COLORS.text,
   },
-  infoText: {
+  tipsText: {
     fontSize: 14,
     color: COLORS.textSecondary,
-    lineHeight: 22,
+    lineHeight: 20,
   },
+  // Empty Card
   emptyCard: {
+    marginTop: 20,
+  },
+  emptyCardContent: {
     alignItems: 'center',
-    padding: 40,
+    paddingVertical: 40,
   },
   emptyText: {
     fontSize: 16,
     color: COLORS.textSecondary,
     marginTop: 16,
+  },
+  // Calendar Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  calendarContainer: {
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: 20,
+    padding: 20,
+    width: 340,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  calendarTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  calendarWeekdays: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 10,
+  },
+  weekdayText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textTertiary,
+    width: 40,
+    textAlign: 'center',
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+  },
+  calendarDay: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 2,
+    marginHorizontal: 3.5,
+    borderRadius: 20,
+  },
+  calendarDaySelected: {
+    backgroundColor: COLORS.primary,
+  },
+  calendarDayToday: {
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+  },
+  calendarDayText: {
+    fontSize: 15,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  calendarDayTextSelected: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  calendarDayTextFuture: {
+    color: COLORS.textTertiary,
+    opacity: 0.5,
+  },
+  calendarDayTextEmpty: {
+    color: 'transparent',
+  },
+  todayButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  todayButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

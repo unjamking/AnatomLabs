@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
-import { calculateNutritionPlan, UserPhysicalData } from '../services/nutritionCalculator';
+import { calculateNutritionPlan, calculateHealthAwareNutritionPlan, UserPhysicalData, UserHealthProfile } from '../services/nutritionCalculator';
 import {
   getSuggestions,
   getRecentFoods,
@@ -41,7 +41,14 @@ router.post('/calculate', authenticateToken, async (req: AuthRequest, res: Respo
       fitnessGoal: user.goal as any
     };
 
-    const targets = calculateNutritionPlan(physicalData);
+    // Build health profile from user data
+    const healthProfile: UserHealthProfile = {
+      medicalConditions: user.healthConditions as string[] || [],
+      dietaryPreferences: user.dietaryPreferences as string[] || []
+    };
+
+    // Use health-aware calculation if user has health conditions
+    const targets = calculateHealthAwareNutritionPlan(physicalData, healthProfile);
 
     res.status(200).json(targets);
   } catch (error) {
@@ -109,24 +116,25 @@ router.post('/log', authenticateToken, async (req: AuthRequest, res: Response) =
   }
 });
 
-// GET /api/nutrition/logs/today - Get today's logs grouped by meal
+// GET /api/nutrition/logs/today - Get logs for a date grouped by meal (defaults to today)
 router.get('/logs/today', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
+    const { date } = req.query;
 
-    // Get start and end of today
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // Support both today and any past date via ?date=YYYY-MM-DD
+    const targetDate = date ? new Date(date as string) : new Date();
+    targetDate.setHours(0, 0, 0, 0);
+    const nextDay = new Date(targetDate);
+    nextDay.setDate(nextDay.getDate() + 1);
 
-    // Get all logs for today
+    // Get all logs for the target date
     const logs = await prisma.nutritionLog.findMany({
       where: {
         userId,
         date: {
-          gte: today,
-          lt: tomorrow
+          gte: targetDate,
+          lt: nextDay
         }
       },
       include: {
@@ -182,15 +190,21 @@ router.get('/logs/today', authenticateToken, async (req: AuthRequest, res: Respo
     });
 
     let remaining = null;
+    let healthAdjustments = null;
     if (user?.age && user?.gender && user?.weight && user?.height && user?.activityLevel && user?.goal) {
-      const targets = calculateNutritionPlan({
+      const healthProfile: UserHealthProfile = {
+        medicalConditions: user.healthConditions as string[] || [],
+        dietaryPreferences: user.dietaryPreferences as string[] || []
+      };
+
+      const targets = calculateHealthAwareNutritionPlan({
         age: user.age,
         gender: user.gender as 'male' | 'female',
         weight: user.weight,
         height: user.height,
         activityLevel: user.activityLevel as any,
         fitnessGoal: user.goal as any
-      });
+      }, healthProfile);
 
       remaining = {
         calories: targets.targetCalories - totals.calories,
@@ -198,13 +212,16 @@ router.get('/logs/today', authenticateToken, async (req: AuthRequest, res: Respo
         carbs: targets.macros.carbs - totals.carbs,
         fat: targets.macros.fat - totals.fat
       };
+
+      healthAdjustments = targets.healthAdjustments;
     }
 
     res.status(200).json({
-      date: today.toISOString(),
+      date: targetDate.toISOString(),
       meals: mealGroups,
       totals,
       remaining,
+      healthAdjustments,
       logCount: logs.length
     });
   } catch (error) {
@@ -257,14 +274,19 @@ router.get('/logs/history', authenticateToken, async (req: AuthRequest, res: Res
 
     let targetCalories = 2000; // default
     if (user?.age && user?.gender && user?.weight && user?.height && user?.activityLevel && user?.goal) {
-      const targets = calculateNutritionPlan({
+      const healthProfile: UserHealthProfile = {
+        medicalConditions: user.healthConditions as string[] || [],
+        dietaryPreferences: user.dietaryPreferences as string[] || []
+      };
+
+      const targets = calculateHealthAwareNutritionPlan({
         age: user.age,
         gender: user.gender as 'male' | 'female',
         weight: user.weight,
         height: user.height,
         activityLevel: user.activityLevel as any,
         fitnessGoal: user.goal as any
-      });
+      }, healthProfile);
       targetCalories = targets.targetCalories;
     }
 
@@ -569,14 +591,19 @@ router.get('/suggestions', authenticateToken, async (req: AuthRequest, res: Resp
       });
     }
 
-    const targets = calculateNutritionPlan({
+    const healthProfile: UserHealthProfile = {
+      medicalConditions: user.healthConditions as string[] || [],
+      dietaryPreferences: user.dietaryPreferences as string[] || []
+    };
+
+    const targets = calculateHealthAwareNutritionPlan({
       age: user.age,
       gender: user.gender as 'male' | 'female',
       weight: user.weight,
       height: user.height,
       activityLevel: user.activityLevel as any,
       fitnessGoal: user.goal as any
-    });
+    }, healthProfile);
 
     const remaining = {
       calories: targets.targetCalories - consumed.calories,
@@ -589,7 +616,8 @@ router.get('/suggestions', authenticateToken, async (req: AuthRequest, res: Resp
 
     res.status(200).json({
       remaining,
-      suggestions
+      suggestions,
+      healthAdjustments: targets.healthAdjustments
     });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });

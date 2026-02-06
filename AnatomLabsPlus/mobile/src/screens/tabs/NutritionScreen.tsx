@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Animated, {
@@ -84,7 +85,6 @@ export default function NutritionScreen() {
   const [searchResults, setSearchResults] = useState<Food[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [waterIntake, setWaterIntake] = useState(0);
   const [showFormulas, setShowFormulas] = useState(false);
   const [weightInput, setWeightInput] = useState('');
   const [weightHistory, setWeightHistory] = useState<WeightLog[]>([]);
@@ -93,6 +93,7 @@ export default function NutritionScreen() {
     history: Array<{ date: string; calories: number; dayOfWeek: string }>;
     stats: { average: number; target: number; adherence: number; daysTracked: number; totalDays: number };
   } | null>(null);
+  const [userAllergies, setUserAllergies] = useState<string[]>([]);
 
   const scrollY = useSharedValue(0);
   const { trigger } = useHaptics();
@@ -113,6 +114,52 @@ export default function NutritionScreen() {
     loadWeightHistory();
     loadTargets();
     loadCalorieHistory();
+    loadUserAllergies();
+  };
+
+  const loadUserAllergies = async () => {
+    try {
+      const profile = await api.getUserProfile();
+      setUserAllergies(profile.foodAllergies || []);
+    } catch (error) {
+      console.error('Failed to load user allergies:', error);
+    }
+  };
+
+  // Check if food contains user allergens
+  const checkFoodAllergies = (food: Food): string[] => {
+    if (!userAllergies.length) return [];
+
+    const matchedAllergies: string[] = [];
+    const foodName = food.name.toLowerCase();
+    const foodCategory = (food.category || '').toLowerCase();
+
+    // Map allergy IDs to keywords to search for
+    const allergyKeywords: { [key: string]: string[] } = {
+      peanuts: ['peanut', 'groundnut'],
+      tree_nuts: ['almond', 'walnut', 'cashew', 'pistachio', 'pecan', 'macadamia', 'hazelnut', 'brazil nut', 'nut'],
+      dairy: ['milk', 'cheese', 'butter', 'cream', 'yogurt', 'whey', 'casein', 'lactose', 'dairy'],
+      eggs: ['egg', 'albumin', 'mayonnaise'],
+      wheat: ['wheat', 'flour', 'bread', 'pasta', 'semolina', 'spelt', 'durum'],
+      gluten: ['gluten', 'wheat', 'barley', 'rye', 'bread', 'pasta'],
+      soy: ['soy', 'soya', 'edamame', 'tofu', 'tempeh', 'miso'],
+      fish: ['fish', 'salmon', 'tuna', 'cod', 'anchovy', 'sardine', 'tilapia'],
+      shellfish: ['shrimp', 'crab', 'lobster', 'clam', 'oyster', 'mussel', 'scallop', 'shellfish', 'prawn'],
+      sesame: ['sesame', 'tahini', 'hummus'],
+      lactose: ['milk', 'lactose', 'cream', 'cheese', 'yogurt'],
+    };
+
+    for (const allergy of userAllergies) {
+      const keywords = allergyKeywords[allergy] || [allergy];
+      for (const keyword of keywords) {
+        if (foodName.includes(keyword) || foodCategory.includes(keyword)) {
+          matchedAllergies.push(allergy);
+          break;
+        }
+      }
+    }
+
+    return matchedAllergies;
   };
 
   const loadCalorieHistory = async () => {
@@ -177,12 +224,19 @@ export default function NutritionScreen() {
     return () => clearTimeout(timer);
   }, [searchQuery, searchFoods]);
 
-  // Handle adding food
+  const [isSaving, setIsSaving] = useState(false);
+
   const handleAddFood = async () => {
-    if (!selectedFood) return;
-    trigger('success');
+    if (!selectedFood || isSaving) return;
+    setIsSaving(true);
     try {
       await logFood(selectedFood.id, servings, selectedMealType);
+      trigger('success');
+      Alert.alert(
+        'Food Added',
+        `${selectedFood.name} (${servings} serving${servings > 1 ? 's' : ''}) added to ${selectedMealType}`,
+        [{ text: 'OK' }]
+      );
       setShowFoodDetailModal(false);
       setShowAddFoodModal(false);
       setSelectedFood(null);
@@ -190,7 +244,9 @@ export default function NutritionScreen() {
       setSearchQuery('');
     } catch (err) {
       trigger('error');
-      Alert.alert('Error', 'Failed to log food');
+      Alert.alert('Error', 'Failed to save food. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -218,11 +274,6 @@ export default function NutritionScreen() {
     tabIndicatorPosition.value = withSpring(positions[tab] * 80, SPRING_CONFIG.snappy);
   };
 
-  const addWater = (amount: number) => {
-    trigger('light');
-    setWaterIntake(prev => prev + amount);
-  };
-
   // Calculate consumed nutrients
   const consumed = todaySummary?.totals || { calories: 0, protein: 0, carbs: 0, fat: 0 };
   const currentTargets = localTargets || targets;
@@ -237,10 +288,6 @@ export default function NutritionScreen() {
     carbs: Math.max(0, targetValues.macros.carbs - consumed.carbs),
     fat: Math.max(0, targetValues.macros.fat - consumed.fat),
   };
-
-  // Calculate water goal based on user weight (35ml per kg body weight)
-  const userWeight = (currentTargets as any)?.userWeight || 70; // Default 70kg if not set
-  const waterGoal = Math.round(userWeight * 35); // 35ml per kg is standard recommendation
 
   // Net calories (with exercise)
   const today = new Date().toISOString().split('T')[0];
@@ -333,29 +380,6 @@ export default function NutritionScreen() {
                   {Math.round(Math.max(0, macro.target - macro.current))}{macro.unit} left
                 </Text>
               </View>
-            ))}
-          </View>
-        </GlassCard>
-      </SlideIn>
-
-      {/* Water Tracking */}
-      <SlideIn direction="bottom" delay={200}>
-        <GlassCard style={styles.waterCard}>
-          <View style={styles.waterHeader}>
-            <View style={styles.waterInfo}>
-              <Ionicons name="water" size={20} color={COLORS.info} />
-              <Text style={styles.waterTitle}>Water</Text>
-            </View>
-            <Text style={styles.waterAmount}>{waterIntake} / {waterGoal} ml</Text>
-          </View>
-          <View style={styles.waterProgress}>
-            <View style={[styles.waterProgressFill, { width: `${Math.min(100, (waterIntake / waterGoal) * 100)}%` }]} />
-          </View>
-          <View style={styles.waterButtons}>
-            {[250, 500, 750].map(amount => (
-              <TouchableOpacity key={amount} style={styles.waterButton} onPress={() => addWater(amount)}>
-                <Text style={styles.waterButtonText}>+{amount}ml</Text>
-              </TouchableOpacity>
             ))}
           </View>
         </GlassCard>
@@ -905,7 +929,6 @@ export default function NutritionScreen() {
               placeholderTextColor={COLORS.textTertiary}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              autoFocus
             />
             {isSearching && <Ionicons name="hourglass-outline" size={18} color={COLORS.textSecondary} />}
           </View>
@@ -922,7 +945,8 @@ export default function NutritionScreen() {
                     onPress={() => {
                       setSelectedFood(food);
                       setServings(food.defaultServings || 1);
-                      setShowFoodDetailModal(true);
+                      setShowAddFoodModal(false);
+                      setTimeout(() => setShowFoodDetailModal(true), 300);
                     }}
                   >
                     <Text style={styles.recentChipText} numberOfLines={1}>{food.name}</Text>
@@ -933,20 +957,58 @@ export default function NutritionScreen() {
             </View>
           )}
 
-          <Animated.ScrollView style={styles.foodList}>
-            {searchResults.map((food, index) => (
-              <AnimatedListItem key={food.id} index={index} enterFrom="right">
-                <AnimatedCard
+          <ScrollView style={styles.foodList} keyboardShouldPersistTaps="handled">
+            {searchResults.map((food) => {
+              const allergyMatches = checkFoodAllergies(food);
+              const hasAllergyWarning = allergyMatches.length > 0;
+
+              return (
+                <TouchableOpacity
+                  key={food.id}
+                  style={[styles.foodSearchCard, hasAllergyWarning && styles.foodSearchCardWarning]}
                   onPress={() => {
-                    setSelectedFood(food);
-                    setServings(1);
-                    setShowFoodDetailModal(true);
+                    if (hasAllergyWarning) {
+                      Alert.alert(
+                        'Allergy Warning',
+                        `This food may contain: ${allergyMatches.join(', ')}.\n\nDo you still want to add it?`,
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Add Anyway',
+                            style: 'destructive',
+                            onPress: () => {
+                              setSelectedFood(food);
+                              setServings(1);
+                              setShowAddFoodModal(false);
+                              setTimeout(() => setShowFoodDetailModal(true), 300);
+                            },
+                          },
+                        ]
+                      );
+                    } else {
+                      setSelectedFood(food);
+                      setServings(1);
+                      setShowAddFoodModal(false);
+                      setTimeout(() => setShowFoodDetailModal(true), 300);
+                    }
                   }}
-                  style={styles.foodSearchCard}
+                  activeOpacity={0.7}
                 >
                   <View style={styles.foodSearchInfo}>
-                    <Text style={styles.foodSearchName}>{food.name}</Text>
+                    <View style={styles.foodNameRow}>
+                      <Text style={styles.foodSearchName}>{food.name}</Text>
+                      {hasAllergyWarning && (
+                        <View style={styles.allergyBadge}>
+                          <Ionicons name="warning" size={12} color="#fff" />
+                        </View>
+                      )}
+                    </View>
                     <Text style={styles.foodSearchServing}>{food.servingSize}</Text>
+                    {hasAllergyWarning && (
+                      <Text style={styles.allergyWarningText}>
+                        Contains: {allergyMatches.join(', ')}
+                      </Text>
+                    )}
                   </View>
                   <View style={styles.foodSearchNutrients}>
                     <Text style={styles.foodSearchCalories}>{food.calories} cal</Text>
@@ -956,10 +1018,10 @@ export default function NutritionScreen() {
                       <Text style={[styles.foodSearchMacro, { color: COLORS.warning }]}>F {food.fat}g</Text>
                     </View>
                   </View>
-                </AnimatedCard>
-              </AnimatedListItem>
-            ))}
-          </Animated.ScrollView>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
       </Modal>
 
@@ -1001,6 +1063,39 @@ export default function NutritionScreen() {
                   </View>
                 </View>
 
+                {/* Meal Type Selector */}
+                <View style={styles.mealTypeSelector}>
+                  <Text style={styles.servingsLabel}>Add to Meal</Text>
+                  <View style={styles.mealTypeButtons}>
+                    {(['breakfast', 'lunch', 'dinner', 'snack'] as const).map((meal) => (
+                      <TouchableOpacity
+                        key={meal}
+                        style={[
+                          styles.mealTypeButton,
+                          selectedMealType === meal && styles.mealTypeButtonActive
+                        ]}
+                        onPress={() => setSelectedMealType(meal)}
+                      >
+                        <Ionicons
+                          name={
+                            meal === 'breakfast' ? 'sunny-outline' :
+                            meal === 'lunch' ? 'partly-sunny-outline' :
+                            meal === 'dinner' ? 'moon-outline' : 'cafe-outline'
+                          }
+                          size={16}
+                          color={selectedMealType === meal ? '#fff' : COLORS.textSecondary}
+                        />
+                        <Text style={[
+                          styles.mealTypeButtonText,
+                          selectedMealType === meal && styles.mealTypeButtonTextActive
+                        ]}>
+                          {meal.charAt(0).toUpperCase() + meal.slice(1)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
                 <View style={styles.foodDetailNutrients}>
                   <View style={styles.foodDetailNutrient}>
                     <Text style={styles.foodDetailNutrientValue}>{Math.round(selectedFood.calories * servings)}</Text>
@@ -1021,14 +1116,20 @@ export default function NutritionScreen() {
                 </View>
               </GlassCard>
 
-              <AnimatedButton
-                title="Add Food"
-                variant="primary"
-                size="large"
+              <TouchableOpacity
+                style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
                 onPress={handleAddFood}
-                style={styles.addFoodButton}
-                hapticType="heavy"
-              />
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Ionicons name="checkmark-circle" size={24} color="#fff" />
+                )}
+                <Text style={styles.saveButtonText}>
+                  {isSaving ? 'Saving...' : `Save to ${selectedMealType.charAt(0).toUpperCase() + selectedMealType.slice(1)}`}
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -1188,6 +1289,7 @@ const styles = StyleSheet.create({
   macroGrid: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    alignItems: 'center',
   },
   macroItem: {
     alignItems: 'center',
@@ -1438,6 +1540,7 @@ const styles = StyleSheet.create({
   trendStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    alignItems: 'center',
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
@@ -1458,6 +1561,7 @@ const styles = StyleSheet.create({
   weightStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    alignItems: 'center',
     marginBottom: 12,
   },
   weightStat: {
@@ -1715,16 +1819,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
-    padding: 12,
+    padding: 14,
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  foodSearchCardWarning: {
+    borderColor: '#f39c12',
+    backgroundColor: 'rgba(243, 156, 18, 0.1)',
   },
   foodSearchInfo: {
     flex: 1,
+  },
+  foodNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   foodSearchName: {
     fontSize: 14,
     fontWeight: '500',
     color: COLORS.text,
     marginBottom: 1,
+  },
+  allergyBadge: {
+    backgroundColor: '#f39c12',
+    borderRadius: 10,
+    width: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  allergyWarningText: {
+    fontSize: 11,
+    color: '#f39c12',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   foodSearchServing: {
     fontSize: 11,
@@ -1817,5 +1948,66 @@ const styles = StyleSheet.create({
   },
   addFoodButton: {
     marginTop: 'auto',
+  },
+  // Meal Type Selector
+  mealTypeSelector: {
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  mealTypeButtons: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 8,
+  },
+  mealTypeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    backgroundColor: COLORS.cardBackgroundLight,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    minWidth: 70,
+  },
+  mealTypeButtonActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  mealTypeButtonText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    flexShrink: 0,
+  },
+  mealTypeButtonTextActive: {
+    color: '#fff',
+  },
+  // Save Button
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: COLORS.success,
+    paddingVertical: 16,
+    borderRadius: 14,
+    marginTop: 'auto',
+    shadowColor: COLORS.success,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  saveButtonText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
   },
 });

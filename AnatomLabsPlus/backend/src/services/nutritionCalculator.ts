@@ -460,6 +460,91 @@ function applyConditionMacroAdjustments(
     adjustments.recommendations.push('Calcium intake: 1200mg+ daily');
     adjustments.recommendations.push('Vitamin D: 800-1000 IU daily');
   }
+
+  // Mental health condition adjustments
+  if (conditions.includes('depression') || conditions.includes('anxiety') || conditions.includes('ptsd') || conditions.includes('bipolar')) {
+    adjustments.focusNutrients.push('omega3', 'vitaminD', 'vitaminB12', 'magnesium');
+    adjustments.recommendations.push('Prioritize omega-3 rich foods (fatty fish, walnuts, flaxseed)');
+    adjustments.recommendations.push('Regular meal timing helps regulate mood');
+
+    if (conditions.includes('anxiety') || conditions.includes('ptsd')) {
+      adjustments.warnings.push('Caffeine limited to 100-200mg/day to reduce anxiety symptoms');
+    }
+  }
+
+  // Chronic fatigue / Fibromyalgia adjustments
+  if (conditions.includes('chronic_fatigue') || conditions.includes('fibromyalgia')) {
+    adjustments.focusNutrients.push('vitaminB12', 'vitaminD', 'magnesium', 'iron');
+    adjustments.recommendations.push('Small, frequent meals to maintain energy levels');
+    adjustments.recommendations.push('Anti-inflammatory diet may help reduce symptoms');
+    adjustments.recommendations.push('Consider CoQ10 supplementation');
+  }
+
+  // Multiple Sclerosis adjustments
+  if (conditions.includes('multiple_sclerosis')) {
+    adjustments.focusNutrients.push('vitaminD', 'omega3', 'vitaminB12');
+    adjustments.recommendations.push('Vitamin D is especially important - aim for 600-800 IU daily');
+    adjustments.recommendations.push('Anti-inflammatory omega-3 fatty acids');
+    adjustments.warnings.push('Adequate fiber important for bowel function');
+  }
+
+  // Parkinson's adjustments
+  if (conditions.includes('parkinsons')) {
+    adjustments.focusNutrients.push('fiber', 'omega3');
+    adjustments.recommendations.push('Adequate fiber for constipation management');
+    adjustments.warnings.push('Time protein intake carefully if taking levodopa - protein can interfere with medication absorption');
+  }
+
+  // Digestive condition adjustments (IBS, Crohn's, Celiac)
+  if (conditions.includes('ibs')) {
+    adjustments.focusNutrients.push('fiber', 'probiotics');
+    adjustments.recommendations.push('Consider low FODMAP diet to identify triggers');
+    adjustments.recommendations.push('Increase fiber gradually');
+    adjustments.recommendations.push('Probiotics may help digestive symptoms');
+  }
+
+  if (conditions.includes('crohns_disease')) {
+    adjustments.focusNutrients.push('vitaminB12', 'iron', 'vitaminD', 'calcium', 'zinc');
+    adjustments.recommendations.push('Small, frequent meals easier to digest');
+    adjustments.recommendations.push('May need supplements due to malabsorption');
+    adjustments.warnings.push('Reduce fiber during flares, increase during remission');
+  }
+
+  if (conditions.includes('celiac_disease')) {
+    adjustments.focusNutrients.push('iron', 'calcium', 'vitaminD', 'vitaminB12', 'folate');
+    adjustments.warnings.push('STRICT gluten-free diet required - zero tolerance');
+    adjustments.recommendations.push('Check all supplements and medications for hidden gluten');
+    adjustments.recommendations.push('Initially may need iron, calcium, vitamin D supplementation');
+  }
+
+  // Rheumatoid Arthritis adjustments
+  if (conditions.includes('arthritis_rheumatoid')) {
+    adjustments.focusNutrients.push('omega3', 'vitaminD', 'calcium');
+    adjustments.recommendations.push('Anti-inflammatory diet is essential');
+    adjustments.recommendations.push('High omega-3 intake from fatty fish');
+    adjustments.recommendations.push('Consider Mediterranean diet pattern');
+  }
+
+  // ADHD adjustments
+  if (conditions.includes('adhd')) {
+    adjustments.focusNutrients.push('omega3', 'protein', 'iron', 'zinc');
+    adjustments.recommendations.push('Protein at breakfast helps focus');
+    adjustments.recommendations.push('Limit sugar and processed foods');
+  }
+
+  // Eating disorder recovery - special handling
+  if (conditions.includes('eating_disorder_recovery')) {
+    adjustments.warnings.push('Follow meal plan from treatment team - do not modify without guidance');
+    adjustments.recommendations.push('Regular meals and snacks as prescribed');
+    adjustments.focusNutrients.push('calcium', 'vitaminD', 'iron', 'zinc');
+  }
+
+  // Epilepsy adjustments
+  if (conditions.includes('epilepsy')) {
+    adjustments.focusNutrients.push('magnesium', 'vitaminB6', 'omega3');
+    adjustments.recommendations.push('Maintain regular meal times');
+    adjustments.recommendations.push('Stay well hydrated');
+  }
 }
 
 /**

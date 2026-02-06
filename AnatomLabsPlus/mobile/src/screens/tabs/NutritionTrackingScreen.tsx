@@ -1127,6 +1127,7 @@ const styles = StyleSheet.create({
   macroGrid: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    alignItems: 'center',
   },
   macroItem: {
     alignItems: 'center',
@@ -1373,6 +1374,7 @@ const styles = StyleSheet.create({
   trendStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    alignItems: 'center',
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
@@ -1393,6 +1395,7 @@ const styles = StyleSheet.create({
   weightStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    alignItems: 'center',
     marginBottom: 16,
   },
   weightStat: {

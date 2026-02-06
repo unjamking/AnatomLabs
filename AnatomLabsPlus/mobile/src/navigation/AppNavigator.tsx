@@ -26,6 +26,7 @@ import ScannedFoodDetailsScreen from '../screens/scanner/ScannedFoodDetailsScree
 import ManualFoodEntryScreen from '../screens/scanner/ManualFoodEntryScreen';
 import FoodScannerScreen from '../screens/scanner/FoodScannerScreen';
 import AnatomyExplorerScreen from '../screens/tabs/AnatomyExplorerScreen';
+import HealthProfileScreen from '../screens/tabs/HealthProfileScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -221,6 +222,13 @@ export default function AppNavigator() {
               options={{
                 animation: 'slide_from_bottom',
                 presentation: 'fullScreenModal',
+              }}
+            />
+            <Stack.Screen
+              name="HealthProfile"
+              component={HealthProfileScreen}
+              options={{
+                animation: 'slide_from_right',
               }}
             />
           </>

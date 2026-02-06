@@ -94,6 +94,42 @@ router.put('/today', authenticateToken, async (req: AuthRequest, res: Response) 
   }
 });
 
+// GET /api/activity - Get activity log for a specific date (or today)
+router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const dateParam = req.query.date as string;
+
+    const targetDate = dateParam ? new Date(dateParam) : new Date();
+    const { start, end } = getDayBounds(targetDate);
+
+    const activityLog = await prisma.activityLog.findFirst({
+      where: {
+        userId,
+        date: { gte: start, lte: end }
+      }
+    });
+
+    if (!activityLog) {
+      return res.json({
+        success: true,
+        data: {
+          date: targetDate.toISOString(),
+          steps: 0,
+          waterIntake: 0,
+          sleepHours: null,
+          caloriesBurned: 0,
+        }
+      });
+    }
+
+    res.json({ success: true, data: activityLog });
+  } catch (error) {
+    console.error('Error getting activity:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // POST /api/activity/log - Log activity
 router.post('/log', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {

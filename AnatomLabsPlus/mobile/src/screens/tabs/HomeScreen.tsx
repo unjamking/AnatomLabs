@@ -336,6 +336,13 @@ export default function HomeScreen({ navigation }: any) {
       screen: 'Reports',
       color: '#9b59b6',
     },
+    {
+      title: 'Health Profile',
+      subtitle: 'Medical conditions & dietary needs',
+      icon: 'medical-outline' as const,
+      screen: 'HealthProfile',
+      color: '#e67e22',
+    },
   ];
 
   return (
@@ -695,6 +702,7 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
     padding: 20,
     gap: 12,
   },
@@ -777,6 +785,7 @@ const styles = StyleSheet.create({
   healthMetricsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    alignItems: 'center',
     backgroundColor: COLORS.cardBackground,
     borderRadius: 12,
     padding: 12,

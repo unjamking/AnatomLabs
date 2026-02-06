@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,30 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Dimensions,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  interpolate,
+  Easing,
+  FadeIn,
+  FadeInRight,
+  FadeInLeft,
+  FadeOutLeft,
+  FadeOutRight,
+  SlideInRight,
+  SlideOutLeft,
+  Layout,
+} from 'react-native-reanimated';
 import { Picker } from '@react-native-picker/picker';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import MultiSelectChips, { CollapsibleSection } from '../../components/forms/MultiSelectChips';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface Props {
   navigation: any;
@@ -24,6 +43,10 @@ export default function RegisterScreen({ navigation }: Props) {
   const { register } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
+  const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
+
+  // Animation for progress dots
+  const progressAnimation = useSharedValue(1);
 
   // Step 1: Account info
   const [name, setName] = useState('');
@@ -145,16 +168,24 @@ export default function RegisterScreen({ navigation }: Props) {
 
   const handleNext = () => {
     if (step === 1 && validateStep1()) {
+      setDirection('forward');
+      progressAnimation.value = withSpring(2, { damping: 15 });
       setStep(2);
     } else if (step === 2 && validateStep2()) {
+      setDirection('forward');
+      progressAnimation.value = withSpring(3, { damping: 15 });
       setStep(3);
     } else if (step === 3) {
+      setDirection('forward');
+      progressAnimation.value = withSpring(4, { damping: 15 });
       setStep(4);
     }
   };
 
   const handleBack = () => {
     if (step > 1) {
+      setDirection('backward');
+      progressAnimation.value = withSpring(step - 1, { damping: 15 });
       setStep(step - 1);
     } else {
       navigation.goBack();
@@ -189,64 +220,82 @@ export default function RegisterScreen({ navigation }: Props) {
   };
 
   const renderStep1 = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Create Account</Text>
-      <Text style={styles.stepSubtitle}>Step 1 of 4 - Account Details</Text>
+    <Animated.View
+      entering={direction === 'forward' ? FadeInRight.duration(300).springify() : FadeInLeft.duration(300).springify()}
+      exiting={direction === 'forward' ? FadeOutLeft.duration(200) : FadeOutRight.duration(200)}
+      style={styles.stepContainer}
+    >
+      <Animated.Text entering={FadeIn.delay(100)} style={styles.stepTitle}>Create Account</Animated.Text>
+      <Animated.Text entering={FadeIn.delay(150)} style={styles.stepSubtitle}>Step 1 of 4 - Account Details</Animated.Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Full Name"
-        placeholderTextColor="#666"
-        value={name}
-        onChangeText={setName}
-        autoCapitalize="words"
-      />
+      <Animated.View entering={FadeIn.delay(200)}>
+        <TextInput
+          style={styles.input}
+          placeholder="Full Name"
+          placeholderTextColor="#666"
+          value={name}
+          onChangeText={setName}
+          autoCapitalize="words"
+        />
+      </Animated.View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        placeholderTextColor="#666"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
+      <Animated.View entering={FadeIn.delay(250)}>
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          placeholderTextColor="#666"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+      </Animated.View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Password (min 6 characters)"
-        placeholderTextColor="#666"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
+      <Animated.View entering={FadeIn.delay(300)}>
+        <TextInput
+          style={styles.input}
+          placeholder="Password (min 6 characters)"
+          placeholderTextColor="#666"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+      </Animated.View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Confirm Password"
-        placeholderTextColor="#666"
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-        secureTextEntry
-      />
-    </View>
+      <Animated.View entering={FadeIn.delay(350)}>
+        <TextInput
+          style={styles.input}
+          placeholder="Confirm Password"
+          placeholderTextColor="#666"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+        />
+      </Animated.View>
+    </Animated.View>
   );
 
   const renderStep2 = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Personal Info</Text>
-      <Text style={styles.stepSubtitle}>Step 2 of 4 - Body Metrics</Text>
+    <Animated.View
+      entering={direction === 'forward' ? FadeInRight.duration(300).springify() : FadeInLeft.duration(300).springify()}
+      exiting={direction === 'forward' ? FadeOutLeft.duration(200) : FadeOutRight.duration(200)}
+      style={styles.stepContainer}
+    >
+      <Animated.Text entering={FadeIn.delay(100)} style={styles.stepTitle}>Personal Info</Animated.Text>
+      <Animated.Text entering={FadeIn.delay(150)} style={styles.stepSubtitle}>Step 2 of 4 - Body Metrics</Animated.Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Age"
-        placeholderTextColor="#666"
-        value={age}
-        onChangeText={setAge}
-        keyboardType="numeric"
-      />
+      <Animated.View entering={FadeIn.delay(200)}>
+        <TextInput
+          style={styles.input}
+          placeholder="Age"
+          placeholderTextColor="#666"
+          value={age}
+          onChangeText={setAge}
+          keyboardType="numeric"
+        />
+      </Animated.View>
 
-      <View style={styles.pickerContainer}>
+      <Animated.View entering={FadeIn.delay(250)} style={styles.pickerContainer}>
         <Text style={styles.pickerLabel}>Gender</Text>
         <View style={styles.pickerWrapper}>
           <Picker
@@ -259,34 +308,42 @@ export default function RegisterScreen({ navigation }: Props) {
             <Picker.Item label="Female" value="female" color="#fff" />
           </Picker>
         </View>
-      </View>
+      </Animated.View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Weight (kg)"
-        placeholderTextColor="#666"
-        value={weight}
-        onChangeText={setWeight}
-        keyboardType="decimal-pad"
-      />
+      <Animated.View entering={FadeIn.delay(300)}>
+        <TextInput
+          style={styles.input}
+          placeholder="Weight (kg)"
+          placeholderTextColor="#666"
+          value={weight}
+          onChangeText={setWeight}
+          keyboardType="decimal-pad"
+        />
+      </Animated.View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Height (cm)"
-        placeholderTextColor="#666"
-        value={height}
-        onChangeText={setHeight}
-        keyboardType="decimal-pad"
-      />
-    </View>
+      <Animated.View entering={FadeIn.delay(350)}>
+        <TextInput
+          style={styles.input}
+          placeholder="Height (cm)"
+          placeholderTextColor="#666"
+          value={height}
+          onChangeText={setHeight}
+          keyboardType="decimal-pad"
+        />
+      </Animated.View>
+    </Animated.View>
   );
 
   const renderStep3 = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Fitness Goals</Text>
-      <Text style={styles.stepSubtitle}>Step 3 of 4 - Your Objectives</Text>
+    <Animated.View
+      entering={direction === 'forward' ? FadeInRight.duration(300).springify() : FadeInLeft.duration(300).springify()}
+      exiting={direction === 'forward' ? FadeOutLeft.duration(200) : FadeOutRight.duration(200)}
+      style={styles.stepContainer}
+    >
+      <Animated.Text entering={FadeIn.delay(100)} style={styles.stepTitle}>Fitness Goals</Animated.Text>
+      <Animated.Text entering={FadeIn.delay(150)} style={styles.stepSubtitle}>Step 3 of 4 - Your Objectives</Animated.Text>
 
-      <View style={styles.pickerContainer}>
+      <Animated.View entering={FadeIn.delay(200)} style={styles.pickerContainer}>
         <Text style={styles.pickerLabel}>Primary Goal</Text>
         <View style={styles.pickerWrapper}>
           <Picker
@@ -302,9 +359,9 @@ export default function RegisterScreen({ navigation }: Props) {
             <Picker.Item label="Build Strength" value="strength" color="#fff" />
           </Picker>
         </View>
-      </View>
+      </Animated.View>
 
-      <View style={styles.pickerContainer}>
+      <Animated.View entering={FadeIn.delay(250)} style={styles.pickerContainer}>
         <Text style={styles.pickerLabel}>Experience Level</Text>
         <View style={styles.pickerWrapper}>
           <Picker
@@ -318,9 +375,9 @@ export default function RegisterScreen({ navigation }: Props) {
             <Picker.Item label="Advanced (3+ years)" value="advanced" color="#fff" />
           </Picker>
         </View>
-      </View>
+      </Animated.View>
 
-      <View style={styles.pickerContainer}>
+      <Animated.View entering={FadeIn.delay(300)} style={styles.pickerContainer}>
         <Text style={styles.pickerLabel}>Activity Level</Text>
         <View style={styles.pickerWrapper}>
           <Picker
@@ -336,14 +393,18 @@ export default function RegisterScreen({ navigation }: Props) {
             <Picker.Item label="Very Active (athlete)" value="very_active" color="#fff" />
           </Picker>
         </View>
-      </View>
-    </View>
+      </Animated.View>
+    </Animated.View>
   );
 
   const renderStep4 = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Health Profile</Text>
-      <Text style={styles.stepSubtitle}>Step 4 of 4 - Optional, helps personalize your experience</Text>
+    <Animated.View
+      entering={direction === 'forward' ? FadeInRight.duration(300).springify() : FadeInLeft.duration(300).springify()}
+      exiting={direction === 'forward' ? FadeOutLeft.duration(200) : FadeOutRight.duration(200)}
+      style={styles.stepContainer}
+    >
+      <Animated.Text entering={FadeIn.delay(100)} style={styles.stepTitle}>Health Profile</Animated.Text>
+      <Animated.Text entering={FadeIn.delay(150)} style={styles.stepSubtitle}>Step 4 of 4 - Optional, helps personalize your experience</Animated.Text>
 
       {loadingHealthOptions ? (
         <View style={styles.loadingContainer}>
@@ -351,73 +412,79 @@ export default function RegisterScreen({ navigation }: Props) {
           <Text style={styles.loadingText}>Loading options...</Text>
         </View>
       ) : healthOptions ? (
-        <ScrollView showsVerticalScrollIndicator={false} style={styles.healthScrollView}>
-          <CollapsibleSection
-            title="Physical Limitations"
-            initiallyExpanded={true}
-            badge={physicalLimitations.length > 0 ? `${physicalLimitations.length}` : undefined}
-          >
-            <MultiSelectChips
-              title=""
-              options={healthOptions.physicalLimitations}
-              selectedIds={physicalLimitations}
-              onSelectionChange={setPhysicalLimitations}
-              collapsible={false}
+        <Animated.View entering={FadeIn.delay(200)} style={styles.healthScrollView}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <CollapsibleSection
+              title="Physical Limitations"
+              initiallyExpanded={true}
+              badge={physicalLimitations.length > 0 ? `${physicalLimitations.length}` : undefined}
               accentColor="#e74c3c"
-            />
-          </CollapsibleSection>
+            >
+              <MultiSelectChips
+                title=""
+                options={healthOptions.physicalLimitations}
+                selectedIds={physicalLimitations}
+                onSelectionChange={setPhysicalLimitations}
+                collapsible={false}
+                accentColor="#e74c3c"
+              />
+            </CollapsibleSection>
 
-          <CollapsibleSection
-            title="Medical Conditions"
-            badge={medicalConditions.length > 0 ? `${medicalConditions.length}` : undefined}
-          >
-            <MultiSelectChips
-              title=""
-              options={healthOptions.medicalConditions}
-              selectedIds={medicalConditions}
-              onSelectionChange={setMedicalConditions}
-              collapsible={false}
+            <CollapsibleSection
+              title="Medical Conditions"
+              badge={medicalConditions.length > 0 ? `${medicalConditions.length}` : undefined}
               accentColor="#9b59b6"
-            />
-          </CollapsibleSection>
+            >
+              <MultiSelectChips
+                title=""
+                options={healthOptions.medicalConditions}
+                selectedIds={medicalConditions}
+                onSelectionChange={setMedicalConditions}
+                collapsible={false}
+                accentColor="#9b59b6"
+              />
+            </CollapsibleSection>
 
-          <CollapsibleSection
-            title="Food Allergies"
-            badge={foodAllergies.length > 0 ? `${foodAllergies.length}` : undefined}
-          >
-            <MultiSelectChips
-              title=""
-              options={healthOptions.foodAllergies}
-              selectedIds={foodAllergies}
-              onSelectionChange={setFoodAllergies}
-              collapsible={false}
+            <CollapsibleSection
+              title="Food Allergies"
+              badge={foodAllergies.length > 0 ? `${foodAllergies.length}` : undefined}
               accentColor="#f39c12"
-            />
-          </CollapsibleSection>
+            >
+              <MultiSelectChips
+                title=""
+                options={healthOptions.foodAllergies}
+                selectedIds={foodAllergies}
+                onSelectionChange={setFoodAllergies}
+                collapsible={false}
+                accentColor="#f39c12"
+              />
+            </CollapsibleSection>
 
-          <CollapsibleSection
-            title="Dietary Preferences"
-            badge={dietaryPreferences.length > 0 ? `${dietaryPreferences.length}` : undefined}
-          >
-            <MultiSelectChips
-              title=""
-              options={healthOptions.dietaryPreferences}
-              selectedIds={dietaryPreferences}
-              onSelectionChange={setDietaryPreferences}
-              collapsible={false}
+            <CollapsibleSection
+              title="Dietary Preferences"
+              badge={dietaryPreferences.length > 0 ? `${dietaryPreferences.length}` : undefined}
               accentColor="#2ecc71"
-            />
-          </CollapsibleSection>
+            >
+              <MultiSelectChips
+                title=""
+                options={healthOptions.dietaryPreferences}
+                selectedIds={dietaryPreferences}
+                onSelectionChange={setDietaryPreferences}
+                collapsible={false}
+                accentColor="#2ecc71"
+              />
+            </CollapsibleSection>
 
-          <Text style={styles.healthNote}>
-            This information helps us personalize your workout and nutrition plans.
-            You can update this anytime in your profile settings.
-          </Text>
-        </ScrollView>
+            <Animated.Text entering={FadeIn.delay(400)} style={styles.healthNote}>
+              This information helps us personalize your workout and nutrition plans.
+              You can update this anytime in your profile settings.
+            </Animated.Text>
+          </ScrollView>
+        </Animated.View>
       ) : (
         <Text style={styles.errorText}>Failed to load options. You can skip this step.</Text>
       )}
-    </View>
+    </Animated.View>
   );
 
   return (
@@ -433,11 +500,13 @@ export default function RegisterScreen({ navigation }: Props) {
         {/* Progress indicator */}
         <View style={styles.progressContainer}>
           {[1, 2, 3, 4].map((s) => (
-            <View
+            <Animated.View
               key={s}
+              layout={Layout.springify()}
               style={[
                 styles.progressDot,
                 s <= step && styles.progressDotActive,
+                s === step && styles.progressDotCurrent,
               ]}
             />
           ))}
@@ -536,6 +605,10 @@ const styles = StyleSheet.create({
   },
   progressDotActive: {
     backgroundColor: '#e74c3c',
+  },
+  progressDotCurrent: {
+    width: 24,
+    borderRadius: 12,
   },
   stepContainer: {
     flex: 1,

@@ -373,7 +373,7 @@ export default function WorkoutTrackingScreen() {
                     <View style={styles.exerciseSelectContent}>
                       <Text style={styles.exerciseSelectName}>{exercise.name}</Text>
                       <Text style={styles.exerciseSelectMuscle}>
-                        {exercise.primaryMuscles.join(', ')}
+                        {exercise.primaryMuscles?.join(', ') || 'Unknown'}
                       </Text>
                     </View>
                     <Ionicons name="add-circle" size={24} color={COLORS.primary} />
@@ -697,6 +697,7 @@ const styles = StyleSheet.create({
   // Stats
   statsRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
     marginBottom: 24,
   },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,25 @@ import {
   Platform,
   UIManager,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  interpolate,
+  Easing,
+  FadeIn,
+  FadeOut,
+  Layout,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
+
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 interface ChipOption {
   id: string;
@@ -95,8 +108,9 @@ export default function MultiSelectChips({
     const chipColor = option.severity ? getSeverityColor(option.severity) : accentColor;
 
     return (
-      <TouchableOpacity
+      <AnimatedTouchable
         key={option.id}
+        layout={Layout.springify().damping(15)}
         style={[
           styles.chip,
           isSelected && { backgroundColor: chipColor + '30', borderColor: chipColor },
@@ -113,14 +127,16 @@ export default function MultiSelectChips({
           {option.name}
         </Text>
         {isSelected && (
-          <Ionicons
-            name="checkmark-circle"
-            size={16}
-            color={chipColor}
-            style={styles.chipIcon}
-          />
+          <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(100)}>
+            <Ionicons
+              name="checkmark-circle"
+              size={16}
+              color={chipColor}
+              style={styles.chipIcon}
+            />
+          </Animated.View>
         )}
-      </TouchableOpacity>
+      </AnimatedTouchable>
     );
   };
 
@@ -190,9 +206,13 @@ export default function MultiSelectChips({
 
       {/* Options Grid (when expanded) */}
       {(isExpanded || !collapsible) && (
-        <View style={styles.chipsContainer}>
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          layout={Layout.springify()}
+          style={styles.chipsContainer}
+        >
           {options.map(renderChip)}
-        </View>
+        </Animated.View>
       )}
     </View>
   );
@@ -203,6 +223,10 @@ interface CollapsibleSectionProps {
   children: React.ReactNode;
   initiallyExpanded?: boolean;
   badge?: string;
+  // For controlled accordion behavior
+  isExpanded?: boolean;
+  onToggle?: () => void;
+  accentColor?: string;
 }
 
 export function CollapsibleSection({
@@ -210,39 +234,91 @@ export function CollapsibleSection({
   children,
   initiallyExpanded = false,
   badge,
+  isExpanded: controlledIsExpanded,
+  onToggle,
+  accentColor = COLORS.primary,
 }: CollapsibleSectionProps) {
-  const [isExpanded, setIsExpanded] = useState(initiallyExpanded);
+  const [internalExpanded, setInternalExpanded] = useState(initiallyExpanded);
+
+  // Use controlled state if provided, otherwise use internal state
+  const isExpanded = controlledIsExpanded !== undefined ? controlledIsExpanded : internalExpanded;
+
+  // Animation values
+  const rotation = useSharedValue(isExpanded ? 1 : 0);
+  const contentHeight = useSharedValue(isExpanded ? 1 : 0);
+  const borderWidth = useSharedValue(isExpanded ? 3 : 0);
+
+  useEffect(() => {
+    rotation.value = withSpring(isExpanded ? 1 : 0, { damping: 15, stiffness: 120 });
+    contentHeight.value = withTiming(isExpanded ? 1 : 0, {
+      duration: 300,
+      easing: Easing.bezier(0.4, 0, 0.2, 1)
+    });
+    borderWidth.value = withTiming(isExpanded ? 3 : 0, { duration: 200 });
+  }, [isExpanded]);
 
   const toggleExpand = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setIsExpanded(!isExpanded);
+    if (onToggle) {
+      onToggle();
+    } else {
+      setInternalExpanded(!internalExpanded);
+    }
   };
 
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${interpolate(rotation.value, [0, 1], [0, 90])}deg` }],
+  }));
+
+  const headerStyle = useAnimatedStyle(() => ({
+    borderLeftWidth: borderWidth.value,
+    borderLeftColor: accentColor,
+  }));
+
+  const contentStyle = useAnimatedStyle(() => ({
+    opacity: contentHeight.value,
+    transform: [{
+      translateY: interpolate(contentHeight.value, [0, 1], [-10, 0])
+    }],
+  }));
+
   return (
-    <View style={styles.sectionContainer}>
-      <TouchableOpacity
-        style={styles.sectionHeader}
+    <Animated.View style={styles.sectionContainer} layout={Layout.springify()}>
+      <AnimatedTouchable
+        style={[styles.sectionHeader, headerStyle]}
         onPress={toggleExpand}
         activeOpacity={0.7}
       >
         <View style={styles.headerLeft}>
-          <Ionicons
-            name={isExpanded ? 'chevron-down' : 'chevron-forward'}
-            size={20}
-            color={COLORS.textSecondary}
-            style={styles.expandIcon}
-          />
-          <Text style={styles.sectionTitle}>{title}</Text>
+          <Animated.View style={chevronStyle}>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={isExpanded ? accentColor : COLORS.textSecondary}
+              style={styles.expandIcon}
+            />
+          </Animated.View>
+          <Text style={[styles.sectionTitle, isExpanded && { color: accentColor }]}>{title}</Text>
           {badge && (
-            <View style={styles.sectionBadge}>
-              <Text style={styles.sectionBadgeText}>{badge}</Text>
-            </View>
+            <Animated.View
+              entering={FadeIn.duration(200)}
+              style={[styles.sectionBadge, { backgroundColor: accentColor + '30' }]}
+            >
+              <Text style={[styles.sectionBadgeText, { color: accentColor }]}>{badge}</Text>
+            </Animated.View>
           )}
         </View>
-      </TouchableOpacity>
+      </AnimatedTouchable>
 
-      {isExpanded && <View style={styles.sectionContent}>{children}</View>}
-    </View>
+      {isExpanded && (
+        <Animated.View
+          entering={FadeIn.duration(250).delay(50)}
+          exiting={FadeOut.duration(150)}
+          style={[styles.sectionContent, contentStyle]}
+        >
+          {children}
+        </Animated.View>
+      )}
+    </Animated.View>
   );
 }
 

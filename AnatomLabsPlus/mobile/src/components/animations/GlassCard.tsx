@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { StyleSheet, View, ViewStyle } from 'react-native';
+import { StyleSheet, View, ViewStyle, StyleProp } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -18,7 +18,8 @@ interface GlassCardProps {
   children: React.ReactNode;
   delay?: number;
   onPress?: () => void;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
+  contentStyle?: StyleProp<ViewStyle>;
   blurIntensity?: number;
   gradientColors?: readonly [string, string, ...string[]];
   borderGlow?: boolean;
@@ -30,6 +31,7 @@ export default function GlassCard({
   delay = 0,
   onPress,
   style,
+  contentStyle,
   blurIntensity = 40,
   gradientColors = ['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.02)'] as const,
   borderGlow = false,
@@ -110,7 +112,7 @@ export default function GlassCard({
           },
         ]}
       />
-      <View style={styles.content}>{children}</View>
+      <View style={[styles.content, contentStyle]}>{children}</View>
     </Animated.View>
   );
 

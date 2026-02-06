@@ -30,22 +30,18 @@ import {
   HealthProfile,
 } from '../types';
 
-// IMPORTANT: Update this with your computer's IP address
-// Find it using: ipconfig (Windows) or ifconfig (Mac/Linux)
-
-// Configuration: Update your IP here
-const YOUR_IP = '192.168.88.89';
-
-// Automatic URL selection based on platform
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 const getApiUrl = () => {
   if (__DEV__) {
-    // For physical devices, always use your Mac's IP address
-    // localhost only works on iOS Simulator, not physical phones
-    return `http://${YOUR_IP}:3001/api`;
+    const debuggerHost = Constants.expoConfig?.hostUri || Constants.manifest?.debuggerHost;
+    if (debuggerHost) {
+      const host = debuggerHost.split(':')[0];
+      return `http://${host}:3001/api`;
+    }
+    return 'http://localhost:3001/api';
   }
-  // Production mode
   return 'https://your-production-api.com/api';
 };
 
@@ -389,6 +385,14 @@ class ApiService {
     return response.data;
   }
 
+  // Get nutrition logs for a specific date (YYYY-MM-DD format)
+  async getLogsByDate(date: string): Promise<DailyNutritionSummary> {
+    const response = await this.api.get<DailyNutritionSummary>('/nutrition/logs/today', {
+      params: { date }
+    });
+    return response.data;
+  }
+
   // Get calorie history for last N days (for trends chart)
   async getCalorieHistory(days?: number): Promise<{
     history: Array<{ date: string; calories: number; dayOfWeek: string }>;
@@ -674,43 +678,114 @@ class ApiService {
 
   // Reports
   async getDailyReport(date?: string): Promise<DailyReport> {
-    // Backend doesn't have a daily report endpoint, so we construct one from available data
     try {
-      const [nutrition, activity] = await Promise.all([
+      const reportDate = date || new Date().toISOString().split('T')[0];
+
+      const [nutritionLogs, nutritionTargets, activity, workoutSessions, injuryRiskData] = await Promise.all([
+        date ? this.getLogsByDate(date).catch(() => null) : this.getTodayLogs().catch(() => null),
         this.calculateNutrition().catch(() => null),
-        this.getActivityLog(date).catch(() => null),
+        date ? this.getActivityLog(date).catch(() => null) : this.getTodayActivity().catch(() => null),
+        this.getWorkoutSessions(50).catch(() => []),
+        this.getInjuryRisk().catch(() => null),
       ]);
 
-      // Return a constructed daily report
+      const actualCalories = nutritionLogs?.totals?.calories || 0;
+      const actualProtein = nutritionLogs?.totals?.protein || 0;
+      const actualCarbs = nutritionLogs?.totals?.carbs || 0;
+      const actualFat = nutritionLogs?.totals?.fat || 0;
+
+      const targetCalories = nutritionTargets?.targetCalories || 2000;
+      const targetProtein = nutritionTargets?.macros?.protein || 150;
+      const targetCarbs = nutritionTargets?.macros?.carbs || 250;
+      const targetFat = nutritionTargets?.macros?.fat || 65;
+
+      const calorieAdherence = Math.min((actualCalories / targetCalories) * 100, 100);
+      const proteinAdherence = Math.min((actualProtein / targetProtein) * 100, 100);
+      const carbsAdherence = Math.min((actualCarbs / targetCarbs) * 100, 100);
+      const fatAdherence = Math.min((actualFat / targetFat) * 100, 100);
+      const adherence = (calorieAdherence + proteinAdherence + carbsAdherence + fatAdherence) / 4;
+
+      const todaysWorkouts = (workoutSessions || []).filter((w: any) => {
+        const workoutDate = w.completedAt || w.startedAt || w.createdAt;
+        return workoutDate && workoutDate.startsWith(reportDate);
+      });
+
+      let totalSets = 0;
+      todaysWorkouts.forEach((w: any) => {
+        if (w.exercises) {
+          w.exercises.forEach((ex: any) => {
+            totalSets += ex.sets?.length || 0;
+          });
+        }
+      });
+
+      const sleepHours = activity?.sleepHours || 0;
+      const workoutCount = todaysWorkouts.length;
+      const recentWorkouts = (workoutSessions || []).slice(0, 7).length;
+
+      let overallRisk: 'low' | 'moderate' | 'high' | 'very_high' = injuryRiskData?.overallRisk || 'low';
+      let needsRestDay = injuryRiskData?.needsRestDay || false;
+      const recommendations: string[] = injuryRiskData?.recommendations || [];
+
+      if (sleepHours > 0 && sleepHours < 6) {
+        if (overallRisk === 'low') overallRisk = 'moderate';
+        else if (overallRisk === 'moderate') overallRisk = 'high';
+        if (!recommendations.includes('Get more sleep for better recovery')) {
+          recommendations.push('Get more sleep for better recovery');
+        }
+      }
+
+      if (recentWorkouts >= 6) {
+        if (overallRisk === 'low') overallRisk = 'moderate';
+        else if (overallRisk === 'moderate') overallRisk = 'high';
+        needsRestDay = true;
+        if (!recommendations.includes('Consider a rest day - high training frequency')) {
+          recommendations.push('Consider a rest day - high training frequency');
+        }
+      }
+
+      if (workoutCount >= 2) {
+        if (overallRisk === 'low') overallRisk = 'moderate';
+        if (!recommendations.includes('Multiple workouts today - ensure adequate recovery')) {
+          recommendations.push('Multiple workouts today - ensure adequate recovery');
+        }
+      }
+
+      if (proteinAdherence < 50 && workoutCount > 0) {
+        if (!recommendations.includes('Increase protein intake for muscle recovery')) {
+          recommendations.push('Increase protein intake for muscle recovery');
+        }
+      }
+
       return {
-        date: date || new Date().toISOString().split('T')[0],
+        date: reportDate,
         nutrition: {
-          calories: 0,
-          protein: 0,
-          carbs: 0,
-          fat: 0,
-          targetCalories: nutrition?.targetCalories || 2000,
-          targetProtein: nutrition?.macros?.protein || 150,
-          targetCarbs: nutrition?.macros?.carbs || 250,
-          targetFat: nutrition?.macros?.fat || 65,
-          adherence: 0,
+          calories: actualCalories,
+          protein: actualProtein,
+          carbs: actualCarbs,
+          fat: actualFat,
+          targetCalories,
+          targetProtein,
+          targetCarbs,
+          targetFat,
+          adherence: Math.round(adherence),
         },
         activity: {
           steps: activity?.steps || 0,
           caloriesBurned: activity?.caloriesBurned || 0,
           waterIntake: activity?.waterIntake || 0,
-          sleepHours: activity?.sleepHours || 0,
+          sleepHours: sleepHours,
         },
         training: {
-          workoutsCompleted: 0,
-          totalVolume: 0,
+          workoutsCompleted: workoutCount,
+          totalVolume: totalSets,
           musclesTrained: [],
         },
         injuryRisk: {
-          overallRisk: 'low',
-          musclesAtRisk: [],
-          recommendations: [],
-          needsRestDay: false,
+          overallRisk,
+          musclesAtRisk: injuryRiskData?.musclesAtRisk || [],
+          recommendations: recommendations.slice(0, 3),
+          needsRestDay,
         },
       } as DailyReport;
     } catch (error) {
@@ -758,6 +833,11 @@ class ApiService {
     return response.data.data;
   }
 
+  async getUserProfile(): Promise<any> {
+    const response = await this.api.get('/users/me');
+    return response.data;
+  }
+
   async getHealthProfile(): Promise<HealthProfile> {
     const response = await this.api.get<{ success: boolean; healthProfile: HealthProfile }>(
       '/users/me/health-profile'
@@ -770,12 +850,9 @@ class ApiService {
     physicalLimitations?: string[];
     foodAllergies?: string[];
     dietaryPreferences?: string[];
-  }): Promise<HealthProfile> {
-    const response = await this.api.put<{ success: boolean; healthProfile: HealthProfile }>(
-      '/users/me/health-profile',
-      profile
-    );
-    return response.data.healthProfile;
+  }): Promise<any> {
+    const response = await this.api.put('/users/me/health-profile', profile);
+    return response.data;
   }
 }
 

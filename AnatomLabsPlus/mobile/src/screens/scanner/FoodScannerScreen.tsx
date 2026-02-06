@@ -682,6 +682,7 @@ const styles = StyleSheet.create({
   },
   instructions: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 40,
   },
   instructionText: {
@@ -827,6 +828,7 @@ const styles = StyleSheet.create({
   micronutrientsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
   },
   micronutrientItem: {
