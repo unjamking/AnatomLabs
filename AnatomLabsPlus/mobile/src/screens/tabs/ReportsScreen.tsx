@@ -609,42 +609,120 @@ export default function ReportsScreen() {
               </TouchableOpacity>
             </SlideIn>
 
-            {/* Training Summary */}
+            {/* Training Summary - Expandable */}
             <SlideIn direction="bottom" delay={300}>
-              <GlassCard
-                style={styles.sectionCardContainer}
-                contentStyle={styles.sectionCardContent}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => toggleSection('training')}
               >
-                <View style={styles.sectionHeaderRow}>
-                  <View style={styles.sectionHeaderLeft}>
-                    <View style={[styles.sectionIcon, { backgroundColor: COLORS.success + '20' }]}>
-                      <Ionicons name="barbell-outline" size={24} color={COLORS.success} />
+                <GlassCard
+                  style={styles.sectionCardContainer}
+                  contentStyle={styles.sectionCardContent}
+                >
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={styles.sectionHeaderLeft}>
+                      <View style={[styles.sectionIcon, { backgroundColor: COLORS.success + '20' }]}>
+                        <Ionicons name="barbell-outline" size={24} color={COLORS.success} />
+                      </View>
+                      <View style={styles.sectionHeaderText}>
+                        <Text style={styles.sectionTitle}>Training</Text>
+                        <Text style={styles.sectionSubtitle}>
+                          {report.training.workoutsCompleted} workout{report.training.workoutsCompleted !== 1 ? 's' : ''} completed
+                        </Text>
+                      </View>
                     </View>
-                    <View style={styles.sectionHeaderText}>
-                      <Text style={styles.sectionTitle}>Training</Text>
-                      <Text style={styles.sectionSubtitle}>
-                        {report.training.workoutsCompleted} workout{report.training.workoutsCompleted !== 1 ? 's' : ''} completed
-                      </Text>
-                    </View>
+                    <Ionicons
+                      name="chevron-down"
+                      size={24}
+                      color={COLORS.textSecondary}
+                      style={expandedSection === 'training' ? styles.expandIconRotated : undefined}
+                    />
                   </View>
-                </View>
 
-                <View style={styles.trainingStats}>
-                  <View style={styles.trainingStat}>
-                    <Text style={[styles.trainingValue, { color: COLORS.success }]}>
-                      {report.training.workoutsCompleted}
-                    </Text>
-                    <Text style={styles.trainingLabel}>Workouts</Text>
+                  <View style={styles.trainingStats}>
+                    <View style={styles.trainingStat}>
+                      <Text style={[styles.trainingValue, { color: COLORS.success }]}>
+                        {report.training.workoutsCompleted}
+                      </Text>
+                      <Text style={styles.trainingLabel}>Workouts</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.trainingStat}>
+                      <Text style={[styles.trainingValue, { color: COLORS.info }]}>
+                        {report.training.totalWeight > 0
+                          ? report.training.totalWeight >= 1000
+                            ? `${(report.training.totalWeight / 1000).toFixed(1)}t`
+                            : `${Math.round(report.training.totalWeight)}`
+                          : '0'}
+                      </Text>
+                      <Text style={styles.trainingLabel}>Total Weight (kg)</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.trainingStat}>
+                      <Text style={[styles.trainingValue, { color: COLORS.primary }]}>
+                        {report.training.totalVolume}
+                      </Text>
+                      <Text style={styles.trainingLabel}>Sets</Text>
+                    </View>
                   </View>
-                  <View style={styles.statDivider} />
-                  <View style={styles.trainingStat}>
-                    <Text style={[styles.trainingValue, { color: COLORS.info }]}>
-                      {report.training.totalVolume}
-                    </Text>
-                    <Text style={styles.trainingLabel}>Total Sets</Text>
-                  </View>
-                </View>
-              </GlassCard>
+
+                  {expandedSection === 'training' && (
+                    <Animated.View
+                      entering={FadeIn.duration(200)}
+                      exiting={FadeOut.duration(150)}
+                      style={styles.expandedContent}
+                    >
+                      {report.training.sessions.length > 0 ? (
+                        report.training.sessions.map((session, index) => (
+                          <View key={index} style={styles.sessionItem}>
+                            <View style={styles.sessionHeader}>
+                              <View style={styles.sessionNameRow}>
+                                <Ionicons name="fitness-outline" size={18} color={COLORS.success} />
+                                <Text style={styles.sessionName}>{session.name}</Text>
+                              </View>
+                              {session.duration > 0 && (
+                                <Text style={styles.sessionDuration}>{session.duration} min</Text>
+                              )}
+                            </View>
+                            <View style={styles.sessionStats}>
+                              <View style={styles.sessionStatItem}>
+                                <Text style={styles.sessionStatValue}>
+                                  {session.totalVolume >= 1000
+                                    ? `${(session.totalVolume / 1000).toFixed(1)}t`
+                                    : `${Math.round(session.totalVolume)} kg`}
+                                </Text>
+                                <Text style={styles.sessionStatLabel}>Volume</Text>
+                              </View>
+                              <View style={styles.sessionStatItem}>
+                                <Text style={styles.sessionStatValue}>{session.totalSets}</Text>
+                                <Text style={styles.sessionStatLabel}>Sets</Text>
+                              </View>
+                              <View style={styles.sessionStatItem}>
+                                <Text style={styles.sessionStatValue}>{session.totalReps}</Text>
+                                <Text style={styles.sessionStatLabel}>Reps</Text>
+                              </View>
+                            </View>
+                            {session.musclesWorked.length > 0 && (
+                              <View style={styles.sessionMuscles}>
+                                {session.musclesWorked.map((muscle, i) => (
+                                  <View key={i} style={styles.muscleBadge}>
+                                    <Text style={styles.muscleBadgeText}>{muscle}</Text>
+                                  </View>
+                                ))}
+                              </View>
+                            )}
+                          </View>
+                        ))
+                      ) : (
+                        <View style={styles.noIssuesContainer}>
+                          <Ionicons name="barbell-outline" size={32} color={COLORS.textTertiary} />
+                          <Text style={styles.noIssuesText}>No workouts recorded for this day</Text>
+                        </View>
+                      )}
+                    </Animated.View>
+                  )}
+                </GlassCard>
+              </TouchableOpacity>
             </SlideIn>
 
             {/* Quick Tips */}
@@ -1070,6 +1148,71 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textSecondary,
     marginTop: 4,
+  },
+  sessionItem: {
+    backgroundColor: COLORS.cardBackgroundLight,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+  },
+  sessionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  sessionNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  sessionName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  sessionDuration: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
+  sessionStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  sessionStatItem: {
+    alignItems: 'center',
+  },
+  sessionStatValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  sessionStatLabel: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  sessionMuscles: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  muscleBadge: {
+    backgroundColor: COLORS.success + '15',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  muscleBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.success,
+    textTransform: 'capitalize',
   },
   // Tips Card
   tipsCard: {

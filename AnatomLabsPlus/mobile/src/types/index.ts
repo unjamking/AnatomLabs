@@ -376,8 +376,18 @@ export interface DailyReport {
   };
   training: {
     workoutsCompleted: number;
-    totalVolume: number; // sets
+    totalVolume: number;
+    totalWeight: number;
+    totalReps: number;
     musclesTrained: string[];
+    sessions: Array<{
+      name: string;
+      duration: number;
+      totalVolume: number;
+      totalSets: number;
+      totalReps: number;
+      musclesWorked: string[];
+    }>;
   };
   injuryRisk: InjuryReport;
 }

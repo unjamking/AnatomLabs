@@ -713,12 +713,30 @@ class ApiService {
       });
 
       let totalSets = 0;
-      todaysWorkouts.forEach((w: any) => {
+      let totalWeight = 0;
+      let totalReps = 0;
+      const allMuscles = new Set<string>();
+
+      const sessions = todaysWorkouts.map((w: any) => {
+        let sessionSets = 0;
         if (w.exercises) {
           w.exercises.forEach((ex: any) => {
-            totalSets += ex.sets?.length || 0;
+            sessionSets += ex.sets?.length || 0;
           });
         }
+        totalSets += sessionSets;
+        totalWeight += w.totalVolume || 0;
+        totalReps += w.totalReps || 0;
+        (w.musclesWorked || []).forEach((m: string) => allMuscles.add(m));
+
+        return {
+          name: w.name || 'Workout',
+          duration: w.duration || 0,
+          totalVolume: w.totalVolume || 0,
+          totalSets: w.totalSets || sessionSets,
+          totalReps: w.totalReps || 0,
+          musclesWorked: w.musclesWorked || [],
+        };
       });
 
       const sleepHours = activity?.sleepHours || 0;
@@ -781,7 +799,10 @@ class ApiService {
         training: {
           workoutsCompleted: workoutCount,
           totalVolume: totalSets,
-          musclesTrained: [],
+          totalWeight,
+          totalReps,
+          musclesTrained: Array.from(allMuscles),
+          sessions,
         },
         injuryRisk: {
           overallRisk,
