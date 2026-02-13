@@ -114,6 +114,8 @@ router.post('/register', async (req: Request, res: Response) => {
         foodAllergies: true,
         dietaryPreferences: true,
         healthProfileComplete: true,
+        isAdmin: true,
+        isCoach: true,
         createdAt: true,
       }
     });

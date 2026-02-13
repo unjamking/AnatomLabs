@@ -61,6 +61,14 @@ router.post('/generate', authenticateToken, async (req: AuthRequest, res: Respon
       }
     });
 
+    const dbExercises = await prisma.exercise.findMany({
+      select: { id: true, name: true }
+    });
+    const exerciseNameToId = new Map<string, string>();
+    dbExercises.forEach(e => {
+      exerciseNameToId.set(e.name.toLowerCase(), e.id);
+    });
+
     const workouts = await Promise.all(
       workoutSplit.workouts.map(async (day) => {
         const workout = await prisma.workout.create({
@@ -75,10 +83,12 @@ router.post('/generate', authenticateToken, async (req: AuthRequest, res: Respon
 
         await Promise.all(
           day.exercises.map(async (ex, index) => {
+            const matchedId = exerciseNameToId.get(ex.exerciseName.toLowerCase()) || null;
             await prisma.workoutExercise.create({
               data: {
                 workoutId: workout.id,
                 exerciseName: ex.exerciseName,
+                exerciseId: matchedId,
                 sets: ex.sets,
                 reps: ex.reps,
                 rest: ex.rest,

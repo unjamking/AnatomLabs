@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useEffect } from 'react';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -6,7 +6,6 @@ import Animated, {
   withDelay,
 } from 'react-native-reanimated';
 import { ViewStyle } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { ANIMATION_DURATION, EASING } from './config';
 
 interface FadeInProps {
@@ -26,25 +25,22 @@ export default function FadeIn({
   from = 0,
   to = 1,
 }: FadeInProps) {
-  const opacity = useSharedValue(to); // Start at target to prevent flash
+  const opacity = useSharedValue(from);
 
-  useFocusEffect(
-    useCallback(() => {
-      // Reset and animate
-      opacity.value = from;
-      opacity.value = withDelay(
-        delay,
-        withTiming(to, {
-          duration,
-          easing: EASING.easeOut,
-        })
-      );
+  useEffect(() => {
+    opacity.value = from;
+    opacity.value = withDelay(
+      delay,
+      withTiming(to, {
+        duration,
+        easing: EASING.easeOut,
+      })
+    );
 
-      return () => {
-        opacity.value = to; // Ensure visible when leaving
-      };
-    }, [delay, duration, from, to])
-  );
+    return () => {
+      opacity.value = to;
+    };
+  }, [delay, duration, from, to]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,

@@ -309,10 +309,10 @@ export default function HomeScreen({ navigation }: any) {
 
   const quickActions = [
     {
-      title: 'Explore Anatomy',
-      subtitle: 'Learn about muscles and body parts',
-      icon: 'body-outline' as const,
-      screen: 'BodyExplorer',
+      title: 'Find a Coach',
+      subtitle: 'Browse expert trainers',
+      icon: 'people-outline' as const,
+      screen: 'Coaches',
       color: '#3498db',
     },
     {
@@ -343,6 +343,27 @@ export default function HomeScreen({ navigation }: any) {
       screen: 'HealthProfile',
       color: '#e67e22',
     },
+    {
+      title: 'Messages',
+      subtitle: 'Chat with coaches',
+      icon: 'chatbubbles-outline' as const,
+      screen: 'Conversations',
+      color: '#1abc9c',
+    },
+    {
+      title: 'My Bookings',
+      subtitle: 'Upcoming sessions',
+      icon: 'calendar-outline' as const,
+      screen: 'Bookings',
+      color: '#8e44ad',
+    },
+    ...(user?.isCoach ? [{
+      title: 'Coach Dashboard',
+      subtitle: 'Manage your coaching',
+      icon: 'speedometer-outline' as const,
+      screen: 'CoachDashboard',
+      color: '#d35400',
+    }] : []),
   ];
 
   return (

@@ -43,6 +43,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  isAdmin  Boolean @default(false)
+  isCoach  Boolean @default(false)
+  isBanned Boolean @default(false)
+
   // Relations
   workoutPlans    WorkoutPlan[]
   nutritionLogs   NutritionLog[]
@@ -55,6 +59,12 @@ model User {
   workoutSessions WorkoutSession[]
   biomarkerLogs   BiomarkerLog[]
   insightCaches   InsightCache[]
+  coachApplication CoachApplication?
+  coachProfile     CoachProfile?
+  bookingsAsClient Booking[]      @relation("ClientBookings")
+  bookingsAsCoach  Booking[]      @relation("CoachBookings")
+  sentMessages     Message[]
+  conversationParticipants ConversationParticipant[]
 
   @@map("users")
 }
@@ -568,4 +578,138 @@ model WorkoutSessionExercise {
   workoutSession   WorkoutSession @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
 
   @@map("workout_session_exercises")
+}
+
+// ========== COACH SYSTEM ==========
+
+model CoachApplication {
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  specialty             String[]
+  experience            Int
+  bio                   String   @db.Text
+  certificationPdfPath  String?
+  status                String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  reviewedBy            String?
+  reviewNote            String?
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("coach_applications")
+}
+
+model CoachProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  specialty     String[]
+  bio           String   @db.Text
+  experience    Int
+  certifications String[]
+  price         Float    @default(0)
+  availability  String[] @default([])
+  avatar        String?
+  verified      Boolean  @default(false)
+  rating        Float    @default(0)
+  reviewCount   Int      @default(0)
+  clientCount   Int      @default(0)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  posts         CoachPost[]
+  stories       CoachStory[]
+
+  @@map("coach_profiles")
+}
+
+model CoachPost {
+  id              String   @id @default(uuid())
+  coachProfileId  String
+  caption         String   @db.Text
+  imageUrl        String?
+  type            String   @default("photo") // photo, video, carousel
+  likes           Int      @default(0)
+  commentsCount   Int      @default(0)
+
+  createdAt       DateTime @default(now())
+
+  coachProfile    CoachProfile @relation(fields: [coachProfileId], references: [id], onDelete: Cascade)
+
+  @@map("coach_posts")
+}
+
+model CoachStory {
+  id              String   @id @default(uuid())
+  coachProfileId  String
+  type            String   // workout, tip, transformation, motivation, nutrition
+  title           String
+  description     String   @db.Text
+  expiresAt       DateTime
+
+  createdAt       DateTime @default(now())
+
+  coachProfile    CoachProfile @relation(fields: [coachProfileId], references: [id], onDelete: Cascade)
+
+  @@map("coach_stories")
+}
+
+model Booking {
+  id        String   @id @default(uuid())
+  clientId  String
+  coachId   String
+  date      DateTime
+  timeSlot  String
+  goal      String?
+  status    String   @default("PENDING") // PENDING, CONFIRMED, CANCELLED, COMPLETED
+  price     Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client    User     @relation("ClientBookings", fields: [clientId], references: [id], onDelete: Cascade)
+  coach     User     @relation("CoachBookings", fields: [coachId], references: [id], onDelete: Cascade)
+
+  @@map("bookings")
+}
+
+model Conversation {
+  id           String   @id @default(uuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id              String    @id @default(uuid())
+  conversationId  String
+  userId          String
+  lastReadAt      DateTime?
+
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id              String   @id @default(uuid())
+  conversationId  String
+  senderId        String
+  content         String   @db.Text
+
+  createdAt       DateTime @default(now())
+
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender          User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
 }

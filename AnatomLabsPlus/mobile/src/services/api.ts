@@ -39,6 +39,18 @@ import {
   InsightItem,
   ShareableReport,
   TrainingHeatmapDay,
+  Coach,
+  CoachApplication,
+  Booking,
+  Conversation,
+  ChatMessage,
+  AdminStats,
+  AdminUserListResponse,
+  AdminUserDetail,
+  AdminCoachApplication,
+  AdminAnalytics,
+  AdminDemographics,
+  AdminEngagement,
 } from '../types';
 
 import { Platform } from 'react-native';
@@ -981,6 +993,166 @@ class ApiService {
       `/reports/${reportId}/share`,
       { expiresInHours },
     );
+    return response.data;
+  }
+
+  async getCoaches(params?: { search?: string; specialty?: string }): Promise<Coach[]> {
+    const response = await this.api.get<Coach[]>('/coaches', { params });
+    return response.data;
+  }
+
+  async getCoachProfile(id: string): Promise<Coach> {
+    const response = await this.api.get<Coach>(`/coaches/${id}`);
+    return response.data;
+  }
+
+  async submitCoachApplication(formData: FormData): Promise<{ message: string; application: CoachApplication }> {
+    const response = await this.api.post('/coach-applications', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async getMyApplication(): Promise<CoachApplication> {
+    const response = await this.api.get<CoachApplication>('/coach-applications/me');
+    return response.data;
+  }
+
+  async createBooking(data: { coachId: string; date: string; timeSlot: string; goal?: string }): Promise<{ message: string; booking: Booking }> {
+    const response = await this.api.post('/bookings', data);
+    return response.data;
+  }
+
+  async getMyBookings(): Promise<Booking[]> {
+    const response = await this.api.get<Booking[]>('/bookings');
+    return response.data;
+  }
+
+  async cancelBooking(id: string): Promise<{ message: string; booking: Booking }> {
+    const response = await this.api.put(`/bookings/${id}/cancel`);
+    return response.data;
+  }
+
+  async getConversations(): Promise<Conversation[]> {
+    const response = await this.api.get<Conversation[]>('/messages/conversations');
+    return response.data;
+  }
+
+  async getOrCreateConversation(recipientId: string): Promise<{ conversation: { id: string; participants: { id: string; name: string }[] } }> {
+    const response = await this.api.post('/messages/conversations', { recipientId });
+    return response.data;
+  }
+
+  async getMessages(conversationId: string, before?: string): Promise<ChatMessage[]> {
+    const params: any = {};
+    if (before) params.before = before;
+    const response = await this.api.get<ChatMessage[]>(`/messages/conversations/${conversationId}/messages`, { params });
+    return response.data;
+  }
+
+  async sendMessage(conversationId: string, content: string): Promise<ChatMessage> {
+    const response = await this.api.post<ChatMessage>(`/messages/conversations/${conversationId}/messages`, { content });
+    return response.data;
+  }
+
+  async markConversationRead(conversationId: string): Promise<void> {
+    await this.api.put(`/messages/conversations/${conversationId}/read`);
+  }
+
+  async getCoachDashboardProfile(): Promise<any> {
+    const response = await this.api.get('/coach-dashboard/profile');
+    return response.data;
+  }
+
+  async updateCoachProfile(data: { bio?: string; price?: number; availability?: string[]; avatar?: string; specialty?: string[] }): Promise<any> {
+    const response = await this.api.put('/coach-dashboard/profile', data);
+    return response.data;
+  }
+
+  async createCoachPost(data: { caption: string; imageUrl?: string; type?: string }): Promise<any> {
+    const response = await this.api.post('/coach-dashboard/posts', data);
+    return response.data;
+  }
+
+  async deleteCoachPost(id: string): Promise<void> {
+    await this.api.delete(`/coach-dashboard/posts/${id}`);
+  }
+
+  async createCoachStory(data: { type: string; title: string; description: string }): Promise<any> {
+    const response = await this.api.post('/coach-dashboard/stories', data);
+    return response.data;
+  }
+
+  async getCoachBookings(): Promise<Booking[]> {
+    const response = await this.api.get<Booking[]>('/coach-dashboard/bookings');
+    return response.data;
+  }
+
+  async updateBookingStatus(id: string, status: string): Promise<{ message: string; booking: Booking }> {
+    const response = await this.api.put(`/coach-dashboard/bookings/${id}`, { status });
+    return response.data;
+  }
+
+  async getAdminStats(): Promise<AdminStats> {
+    const response = await this.api.get<AdminStats>('/admin/stats');
+    return response.data;
+  }
+
+  async getAdminUsers(params?: { page?: number; limit?: number; search?: string; role?: string }): Promise<AdminUserListResponse> {
+    const response = await this.api.get<AdminUserListResponse>('/admin/users', { params });
+    return response.data;
+  }
+
+  async getAdminUserDetail(id: string): Promise<AdminUserDetail> {
+    const response = await this.api.get<AdminUserDetail>(`/admin/users/${id}`);
+    return response.data;
+  }
+
+  async updateAdminUser(id: string, data: { isAdmin?: boolean; isCoach?: boolean }): Promise<any> {
+    const response = await this.api.put(`/admin/users/${id}`, data);
+    return response.data;
+  }
+
+  async deleteAdminUser(id: string): Promise<{ message: string }> {
+    const response = await this.api.delete<{ message: string }>(`/admin/users/${id}`);
+    return response.data;
+  }
+
+  async getAdminApplications(status?: string): Promise<AdminCoachApplication[]> {
+    const params = status ? { status } : {};
+    const response = await this.api.get<AdminCoachApplication[]>('/admin/applications', { params });
+    return response.data;
+  }
+
+  async approveApplication(id: string): Promise<{ message: string }> {
+    const response = await this.api.put<{ message: string }>(`/admin/applications/${id}/approve`);
+    return response.data;
+  }
+
+  async rejectApplication(id: string, note?: string): Promise<{ message: string }> {
+    const response = await this.api.put<{ message: string }>(`/admin/applications/${id}/reject`, { note });
+    return response.data;
+  }
+
+  async getAdminAnalytics(days?: number): Promise<AdminAnalytics> {
+    const params = days ? { days } : {};
+    const response = await this.api.get<AdminAnalytics>('/admin/analytics', { params });
+    return response.data;
+  }
+
+  async getAdminDemographics(): Promise<AdminDemographics> {
+    const response = await this.api.get<AdminDemographics>('/admin/analytics/users');
+    return response.data;
+  }
+
+  async getAdminEngagement(days?: number): Promise<AdminEngagement> {
+    const params = days ? { days } : {};
+    const response = await this.api.get<AdminEngagement>('/admin/analytics/engagement', { params });
+    return response.data;
+  }
+
+  async banAdminUser(id: string, isBanned: boolean): Promise<any> {
+    const response = await this.api.put(`/admin/users/${id}/ban`, { isBanned });
     return response.data;
   }
 }

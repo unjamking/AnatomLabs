@@ -26,6 +26,13 @@ import activityRoutes from './routes/activity';
 import reportsRoutes from './routes/reports';
 import healthRoutes from './routes/health';
 import chatRoutes from './routes/chat';
+import coachesRoutes from './routes/coaches';
+import coachApplicationsRoutes from './routes/coachApplications';
+import bookingsRoutes from './routes/bookings';
+import messagesRoutes from './routes/messages';
+import coachDashboardRoutes from './routes/coachDashboard';
+import adminRoutes from './routes/admin';
+import path from 'path';
 
 const app: Express = express();
 const PORT = process.env.PORT || 3001;
@@ -52,6 +59,14 @@ app.use('/api/activity', activityRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/coaches', coachesRoutes);
+app.use('/api/coach-applications', coachApplicationsRoutes);
+app.use('/api/bookings', bookingsRoutes);
+app.use('/api/messages', messagesRoutes);
+app.use('/api/coach-dashboard', coachDashboardRoutes);
+app.use('/api/admin', adminRoutes);
+
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {

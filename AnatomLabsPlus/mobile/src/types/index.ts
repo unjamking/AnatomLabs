@@ -10,15 +10,15 @@ export interface User {
   goal: 'muscle_gain' | 'fat_loss' | 'maintenance' | 'endurance' | 'strength';
   experienceLevel: 'beginner' | 'intermediate' | 'advanced';
   activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
-  // BMI
   bmi?: number;
   bmiCategory?: string;
-  // Health Profile
   healthConditions?: string[];
   physicalLimitations?: string[];
   foodAllergies?: string[];
   dietaryPreferences?: string[];
   healthProfileComplete?: boolean;
+  isAdmin?: boolean;
+  isCoach?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -828,6 +828,219 @@ export interface TrainingHeatmapDay {
   date: string;
   intensity: number;
   workouts: number;
+}
+
+// ============================================
+// COACH MARKETPLACE TYPES
+// ============================================
+
+export interface CoachStory {
+  id: string;
+  type: 'workout' | 'tip' | 'transformation' | 'motivation' | 'nutrition';
+  title: string;
+  description: string;
+  timestamp: string;
+}
+
+export interface CoachPost {
+  id: string;
+  type: 'photo' | 'video' | 'carousel';
+  caption: string;
+  imageUrl: string;
+  likes: number;
+  comments: number;
+  timestamp: string;
+}
+
+export interface Coach {
+  id: string;
+  userId?: string;
+  name: string;
+  avatar?: string;
+  specialty: string[];
+  rating: number;
+  reviewCount: number;
+  price: string;
+  bio: string;
+  experience: number;
+  certifications: string[];
+  clientCount: number;
+  verified: boolean;
+  email?: string;
+  phone?: string;
+  availability?: string[];
+  stories?: CoachStory[];
+  posts?: CoachPost[];
+  followers?: number;
+  following?: number;
+}
+
+export interface CoachApplication {
+  id: string;
+  userId: string;
+  specialty: string[];
+  experience: number;
+  bio: string;
+  certificationPdfPath?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  reviewNote?: string;
+  createdAt: string;
+}
+
+export interface Booking {
+  id: string;
+  clientId: string;
+  coachId: string;
+  date: string;
+  timeSlot: string;
+  goal?: string;
+  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+  price?: number;
+  coach?: { id: string; name: string };
+  client?: { id: string; name: string };
+  createdAt: string;
+}
+
+export interface Conversation {
+  id: string;
+  participants: { id: string; name: string }[];
+  lastMessage?: {
+    id: string;
+    content: string;
+    senderId: string;
+    createdAt: string;
+  };
+  unreadCount: number;
+  updatedAt: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  content: string;
+  sender?: { id: string; name: string };
+  createdAt: string;
+}
+
+// ============================================
+// ADMIN DASHBOARD TYPES
+// ============================================
+
+export interface AdminStats {
+  totalUsers: number;
+  activeUsers: number;
+  newUsersThisWeek: number;
+  totalCoaches: number;
+  bannedUsers: number;
+  totalBookings: number;
+  pendingApplications: number;
+  totalWorkoutSessions: number;
+  totalFoods: number;
+  totalExercises: number;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string;
+  isAdmin: boolean;
+  isCoach: boolean;
+  isBanned: boolean;
+  goal?: string | null;
+  experienceLevel?: string | null;
+  createdAt: string;
+  _count: {
+    workoutSessions: number;
+    nutritionLogs: number;
+  };
+}
+
+export interface AdminUserDetail extends AdminUser {
+  age: number | null;
+  gender: string | null;
+  weight: number | null;
+  height: number | null;
+  goal: string | null;
+  experienceLevel: string | null;
+  activityLevel: string | null;
+  healthConditions: string[];
+  physicalLimitations: string[];
+  foodAllergies: string[];
+  dietaryPreferences: string[];
+  coachProfile: any | null;
+  coachApplication: any | null;
+  _count: {
+    workoutSessions: number;
+    nutritionLogs: number;
+    activityLogs: number;
+    bookingsAsClient: number;
+  };
+}
+
+export interface AdminUserListResponse {
+  users: AdminUser[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface AdminCoachApplication {
+  id: string;
+  userId: string;
+  specialty: string[];
+  experience: number;
+  bio: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  reviewNote: string | null;
+  createdAt: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
+
+export type AdminSegment = 'overview' | 'analytics' | 'users' | 'applications' | 'engagement';
+
+export interface AdminAnalytics {
+  userGrowth: Array<{ date: string; count: number }>;
+  dailyActiveUsers: Array<{ date: string; count: number }>;
+  workoutSessionsPerDay: Array<{ date: string; count: number }>;
+  nutritionLogsPerDay: Array<{ date: string; count: number }>;
+  revenue: Array<{ date: string; amount: number }>;
+  totalRevenue: number;
+  featureAdoption: {
+    workouts: { users: number; percentage: number };
+    nutrition: { users: number; percentage: number };
+    activity: { users: number; percentage: number };
+    coaching: { users: number; percentage: number };
+  };
+}
+
+export interface AdminDemographics {
+  goalDistribution: Array<{ label: string; value: number }>;
+  experienceLevels: Array<{ label: string; value: number }>;
+  genderSplit: Array<{ label: string; value: number }>;
+  activityLevels: Array<{ label: string; value: number }>;
+  healthConditions: Array<{ label: string; value: number }>;
+  ageRanges: Array<{ label: string; value: number }>;
+}
+
+export interface AdminEngagement {
+  retention: {
+    days7: { active: number; total: number; percentage: number };
+    days30: { active: number; total: number; percentage: number };
+    days90: { active: number; total: number; percentage: number };
+  };
+  avgWorkoutsPerUserPerWeek: number;
+  avgNutritionLogsPerUserPerDay: number;
+  topExercises: Array<{ label: string; value: number }>;
+  topFoods: Array<{ label: string; value: number }>;
+  platformHeatmap: Array<{ date: string; value: number }>;
 }
 
 // ============================================

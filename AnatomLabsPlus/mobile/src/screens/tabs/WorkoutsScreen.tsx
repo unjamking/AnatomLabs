@@ -22,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useWorkoutTracking } from '../../context/WorkoutTrackingContext';
 import api from '../../services/api';
 import { WorkoutPlan, GenerateWorkoutRequest, Exercise } from '../../types';
+import ExerciseDetailModal from '../../components/ExerciseDetailModal';
 import {
   AnimatedCard,
   AnimatedButton,
@@ -88,6 +89,9 @@ export default function WorkoutsScreen() {
   const [workoutName, setWorkoutName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
+  const [selectedExerciseName, setSelectedExerciseName] = useState<string | undefined>(undefined);
+  const [selectedExerciseData, setSelectedExerciseData] = useState<{ sets?: number; reps?: string; rest?: number; notes?: string; targetMuscles?: string[] } | undefined>(undefined);
 
   // Generator form state
   const [goal, setGoal] = useState<any>('muscle_gain');
@@ -291,10 +295,13 @@ export default function WorkoutsScreen() {
               <AnimatedListItem key={exercise.id} index={index} enterFrom="bottom">
                 <GlassCard style={styles.exerciseCard}>
                   <View style={styles.exerciseHeader}>
-                    <View style={styles.exerciseInfo}>
-                      <Text style={styles.exerciseName}>{exercise.exerciseName}</Text>
+                    <TouchableOpacity style={styles.exerciseInfo} onPress={() => { setSelectedExerciseId(exercise.exerciseId); setSelectedExerciseName(exercise.exerciseName); setSelectedExerciseData({ targetMuscles: exercise.muscleGroup ? [exercise.muscleGroup] : [] }); }}>
+                      <View style={styles.exerciseNameRow}>
+                        <Text style={styles.exerciseName}>{exercise.exerciseName}</Text>
+                        <Ionicons name="information-circle-outline" size={16} color={COLORS.primary} />
+                      </View>
                       <Text style={styles.muscleGroup}>{exercise.muscleGroup}</Text>
-                    </View>
+                    </TouchableOpacity>
                     <TouchableOpacity onPress={() => { trigger('light'); removeExercise(exercise.id); }}>
                       <Ionicons name="trash-outline" size={18} color={COLORS.error} />
                     </TouchableOpacity>
@@ -387,6 +394,9 @@ export default function WorkoutsScreen() {
               {exercises.map((exercise, index) => (
                 <AnimatedListItem key={exercise.id} index={index} enterFrom="right">
                   <AnimatedCard onPress={() => handleAddExercise(exercise)} style={styles.exerciseSelectCard}>
+                    <TouchableOpacity style={styles.exerciseInfoButton} onPress={() => { setShowExerciseModal(false); setTimeout(() => { setSelectedExerciseId(exercise.id); setSelectedExerciseName(exercise.name); setSelectedExerciseData({ targetMuscles: exercise.primaryMuscles || [] }); }, 300); }}>
+                      <Ionicons name="information-circle-outline" size={20} color={COLORS.textSecondary} />
+                    </TouchableOpacity>
                     <View style={styles.exerciseSelectContent}>
                       <Text style={styles.exerciseSelectName}>{exercise.name}</Text>
                       <Text style={styles.exerciseSelectMuscle}>{exercise.primaryMuscles?.join(', ') || 'Unknown'}</Text>
@@ -801,12 +811,13 @@ export default function WorkoutsScreen() {
                   <Text style={styles.workoutFocus}>Focus: {workout.focus || workout.split || 'Full Body'}</Text>
 
                   {workout.exercises?.map((exercise: any, exIndex: number) => (
-                    <View key={exIndex} style={styles.exerciseItem}>
+                    <TouchableOpacity key={exIndex} style={styles.exerciseItem} onPress={() => { setSelectedPlan(null); setTimeout(() => { setSelectedExerciseId(exercise.exerciseId || null); setSelectedExerciseName(exercise.exerciseName || exercise.name); setSelectedExerciseData({ sets: exercise.sets, reps: exercise.reps, rest: exercise.rest, notes: exercise.notes, targetMuscles: exercise.targetMuscles || [] }); }, 300); }}>
                       <View style={styles.exerciseItemHeader}>
                         <View style={styles.exerciseNumber}>
                           <Text style={styles.exerciseNumberText}>{exIndex + 1}</Text>
                         </View>
                         <Text style={styles.exerciseItemName}>{exercise.exerciseName || exercise.name}</Text>
+                        <Ionicons name="information-circle-outline" size={14} color={COLORS.primary} />
                       </View>
                       <View style={styles.exerciseItemStats}>
                         <View style={styles.exerciseItemStat}>
@@ -824,7 +835,7 @@ export default function WorkoutsScreen() {
                           </View>
                         )}
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   ))}
 
                   {/* Start This Workout Button */}
@@ -903,6 +914,14 @@ export default function WorkoutsScreen() {
           </View>
         </View>
       </Modal>
+
+      <ExerciseDetailModal
+        exerciseId={selectedExerciseId}
+        exerciseName={selectedExerciseName}
+        exerciseData={selectedExerciseData}
+        visible={!!(selectedExerciseId || selectedExerciseName)}
+        onClose={() => { setSelectedExerciseId(null); setSelectedExerciseName(undefined); setSelectedExerciseData(undefined); }}
+      />
     </View>
   );
 }
@@ -1237,6 +1256,11 @@ const styles = StyleSheet.create({
   exerciseInfo: {
     flex: 1,
   },
+  exerciseNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   exerciseName: {
     fontSize: 16,
     fontWeight: '600',
@@ -1556,6 +1580,10 @@ const styles = StyleSheet.create({
   exerciseList: {
     flex: 1,
     paddingHorizontal: 16,
+  },
+  exerciseInfoButton: {
+    padding: 4,
+    marginRight: 8,
   },
   exerciseSelectCard: {
     flexDirection: 'row',

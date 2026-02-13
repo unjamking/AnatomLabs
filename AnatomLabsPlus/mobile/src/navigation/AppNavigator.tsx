@@ -15,7 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import HomeScreen from '../screens/tabs/HomeScreen';
-import BodyExplorerScreen from '../screens/tabs/BodyExplorerScreen';
+import CoachMarketplaceScreen from '../screens/tabs/CoachMarketplaceScreen';
 import NutritionScreen from '../screens/tabs/NutritionScreen';
 import WorkoutsScreen from '../screens/tabs/WorkoutsScreen';
 import ReportsScreen from '../screens/tabs/ReportsScreen';
@@ -27,15 +27,21 @@ import ManualFoodEntryScreen from '../screens/scanner/ManualFoodEntryScreen';
 import FoodScannerScreen from '../screens/scanner/FoodScannerScreen';
 import AnatomyExplorerScreen from '../screens/tabs/AnatomyExplorerScreen';
 import HealthProfileScreen from '../screens/tabs/HealthProfileScreen';
+import ConversationsListScreen from '../screens/messaging/ConversationsListScreen';
+import ConversationScreen from '../screens/messaging/ConversationScreen';
+import CoachDashboardScreen from '../screens/coach/CoachDashboardScreen';
+import CoachApplicationStatusScreen from '../screens/coach/CoachApplicationStatusScreen';
+import BookingsScreen from '../screens/bookings/BookingsScreen';
+import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-type TabIconName = 'home' | 'body' | 'nutrition' | 'barbell' | 'analytics';
+type TabIconName = 'home' | 'people' | 'nutrition' | 'barbell' | 'analytics';
 
 const tabIcons: Record<string, { active: keyof typeof Ionicons.glyphMap; inactive: keyof typeof Ionicons.glyphMap }> = {
   Home: { active: 'home', inactive: 'home-outline' },
-  BodyExplorer: { active: 'body', inactive: 'body-outline' },
+  Coaches: { active: 'people', inactive: 'people-outline' },
   Nutrition: { active: 'nutrition', inactive: 'nutrition-outline' },
   Workouts: { active: 'barbell', inactive: 'barbell-outline' },
   Reports: { active: 'analytics', inactive: 'analytics-outline' },
@@ -117,10 +123,10 @@ function TabNavigator() {
         }}
       />
       <Tab.Screen
-        name="BodyExplorer"
-        component={BodyExplorerScreen}
+        name="Coaches"
+        component={CoachMarketplaceScreen}
         options={{
-          tabBarLabel: 'Anatomy',
+          tabBarLabel: 'Coaches',
         }}
       />
       <Tab.Screen
@@ -149,10 +155,10 @@ function TabNavigator() {
 }
 
 export default function AppNavigator() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
-  // Ensure strict boolean for Fabric renderer compatibility
   const isLoggedIn = isAuthenticated === true;
+  const isAdmin = isLoggedIn && user?.isAdmin === true;
 
   return (
     <NavigationContainer>
@@ -163,7 +169,13 @@ export default function AppNavigator() {
           animationDuration: 250,
         }}
       >
-        {isLoggedIn ? (
+        {isAdmin ? (
+          <Stack.Screen
+            name="AdminDashboard"
+            component={AdminDashboardScreen}
+            options={{ animation: 'fade' }}
+          />
+        ) : isLoggedIn ? (
           <>
             <Stack.Screen
               name="Main"
@@ -227,6 +239,41 @@ export default function AppNavigator() {
             <Stack.Screen
               name="HealthProfile"
               component={HealthProfileScreen}
+              options={{
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
+              name="Conversations"
+              component={ConversationsListScreen}
+              options={{
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
+              name="Conversation"
+              component={ConversationScreen}
+              options={{
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
+              name="CoachDashboard"
+              component={CoachDashboardScreen}
+              options={{
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
+              name="CoachApplicationStatus"
+              component={CoachApplicationStatusScreen}
+              options={{
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
+              name="Bookings"
+              component={BookingsScreen}
               options={{
                 animation: 'slide_from_right',
               }}

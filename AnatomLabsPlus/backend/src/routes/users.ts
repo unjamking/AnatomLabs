@@ -59,6 +59,8 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
         foodAllergies: true,
         dietaryPreferences: true,
         healthProfileComplete: true,
+        isAdmin: true,
+        isCoach: true,
         createdAt: true,
         updatedAt: true,
       }
