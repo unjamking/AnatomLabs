@@ -32,6 +32,7 @@ import bookingsRoutes from './routes/bookings';
 import messagesRoutes from './routes/messages';
 import coachDashboardRoutes from './routes/coachDashboard';
 import adminRoutes from './routes/admin';
+import notificationsRoutes from './routes/notifications';
 import path from 'path';
 
 const app: Express = express();
@@ -65,6 +66,7 @@ app.use('/api/bookings', bookingsRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/coach-dashboard', coachDashboardRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 

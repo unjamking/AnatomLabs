@@ -60,12 +60,15 @@ const PRODUCTION_API_URL = 'https://anatomlabs-production.up.railway.app/api';
 
 const getApiUrl = () => {
   if (__DEV__) {
+    if (Platform.OS === 'web') {
+      return 'http://localhost:3001/api';
+    }
     const debuggerHost = Constants.expoConfig?.hostUri || Constants.manifest?.debuggerHost;
     if (debuggerHost) {
       const host = debuggerHost.split(':')[0];
       return `http://${host}:3001/api`;
     }
-    return 'http://localhost:3001/api';
+    return 'http://172.20.10.3:3001/api';
   }
   return PRODUCTION_API_URL;
 };
@@ -85,7 +88,7 @@ class ApiService {
   constructor() {
     this.api = axios.create({
       baseURL: API_BASE_URL,
-      timeout: 10000,
+      timeout: Platform.OS === 'web' ? 4000 : 10000,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -107,11 +110,11 @@ class ApiService {
     this.api.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
-        if (error.response?.status === 401) {
-          // Clear token on unauthorized
+        const url = error.config?.url || '';
+        const isAuthRoute = url.includes('/auth/login') || url.includes('/auth/register');
+        if (error.response?.status === 401 && !isAuthRoute) {
           await AsyncStorage.removeItem('auth_token');
           await AsyncStorage.removeItem('user_data');
-          // Trigger logout in AuthContext
           if (onAuthFailure) {
             onAuthFailure();
           }
@@ -134,7 +137,7 @@ class ApiService {
           friendlyMessage = serverMessage || 'There was a problem with your request. Please check your input and try again.';
           break;
         case 401:
-          friendlyMessage = 'Your session has expired. Please log in again for security reasons.';
+          friendlyMessage = serverMessage || 'Invalid email or password.';
           break;
         case 403:
           friendlyMessage = 'Sorry, you do not have permission to access this. Please contact support if you believe this is an error.';
@@ -224,18 +227,24 @@ class ApiService {
   }
 
   async getCurrentUser(): Promise<User | null> {
+    if (Platform.OS === 'web') {
+      try {
+        const cached = await AsyncStorage.getItem('user_data');
+        const cachedUser = cached ? JSON.parse(cached) : null;
+        this.api.get('/users/me').then(async r => {
+          if (r.data) await AsyncStorage.setItem('user_data', JSON.stringify(r.data));
+        }).catch(() => {});
+        return cachedUser;
+      } catch {
+        return null;
+      }
+    }
     try {
-      // First try to fetch from the server to validate the token
       const response = await this.api.get('/users/me');
       const user = response.data;
-      // Update cached user data
-      if (user) {
-        await AsyncStorage.setItem('user_data', JSON.stringify(user));
-      }
+      if (user) await AsyncStorage.setItem('user_data', JSON.stringify(user));
       return user;
     } catch (error) {
-      // If server request fails, fall back to cached data
-      // (but the 401 interceptor will handle logout if needed)
       try {
         const userData = await AsyncStorage.getItem('user_data');
         return userData ? JSON.parse(userData) : null;
@@ -1006,6 +1015,16 @@ class ApiService {
     return response.data;
   }
 
+  async followCoach(id: string): Promise<{ message: string }> {
+    const response = await this.api.post<{ message: string }>(`/coaches/${id}/follow`);
+    return response.data;
+  }
+
+  async unfollowCoach(id: string): Promise<{ message: string }> {
+    const response = await this.api.post<{ message: string }>(`/coaches/${id}/unfollow`);
+    return response.data;
+  }
+
   async submitCoachApplication(formData: FormData): Promise<{ message: string; application: CoachApplication }> {
     const response = await this.api.post('/coach-applications', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -1066,6 +1085,18 @@ class ApiService {
 
   async updateCoachProfile(data: { bio?: string; price?: number; availability?: string[]; avatar?: string; specialty?: string[] }): Promise<any> {
     const response = await this.api.put('/coach-dashboard/profile', data);
+    return response.data;
+  }
+
+  async uploadCoachAvatar(imageUri: string): Promise<{ avatarUrl: string }> {
+    const formData = new FormData();
+    const filename = imageUri.split('/').pop() || 'avatar.jpg';
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : 'image/jpeg';
+    formData.append('avatar', { uri: imageUri, name: filename, type } as any);
+    const response = await this.api.post('/coach-dashboard/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   }
 
@@ -1153,6 +1184,30 @@ class ApiService {
 
   async banAdminUser(id: string, isBanned: boolean): Promise<any> {
     const response = await this.api.put(`/admin/users/${id}/ban`, { isBanned });
+    return response.data;
+  }
+
+  // Notifications
+  async getNotifications(): Promise<any[]> {
+    const response = await this.api.get('/notifications');
+    return response.data;
+  }
+
+  async markNotificationRead(id: string): Promise<void> {
+    await this.api.put(`/notifications/${id}/read`);
+  }
+
+  async markAllNotificationsRead(): Promise<void> {
+    await this.api.post('/notifications/read-all');
+  }
+
+  async getMyFollowing(): Promise<any[]> {
+    const response = await this.api.get('/users/me/following');
+    return response.data;
+  }
+
+  async getCoachFollowers(): Promise<any[]> {
+    const response = await this.api.get('/coach-dashboard/followers');
     return response.data;
   }
 }

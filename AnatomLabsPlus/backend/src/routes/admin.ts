@@ -529,13 +529,20 @@ router.put('/applications/:id/approve', authenticateToken, requireAdmin, async (
         where: { id: application.userId },
         data: { isCoach: true },
       }),
-      prisma.coachProfile.create({
-        data: {
+      prisma.coachProfile.upsert({
+        where: { userId: application.userId },
+        create: {
           userId: application.userId,
           specialty: application.specialty,
           bio: application.bio,
           experience: application.experience,
           certifications: [],
+          verified: false,
+        },
+        update: {
+          specialty: application.specialty,
+          bio: application.bio,
+          experience: application.experience,
           verified: false,
         },
       }),

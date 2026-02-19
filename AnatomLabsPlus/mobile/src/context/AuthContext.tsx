@@ -61,6 +61,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const checkAuth = async () => {
     setIsLoading(true);
+    setAuthFailureCallback(() => {});
     try {
       const isAuth = await api.isAuthenticated();
       if (isAuth === true) {
@@ -75,10 +76,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setIsAuthenticated(false);
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
+      setAuthFailureCallback(handleAuthFailure);
     }
   };
 

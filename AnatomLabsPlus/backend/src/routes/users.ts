@@ -336,4 +336,38 @@ router.put('/me/health-profile', authenticateToken, async (req: AuthRequest, res
   }
 });
 
+// GET /api/users/me/following - Get coaches followed by current user
+router.get('/me/following', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+
+    const following = await prisma.follow.findMany({
+      where: { userId },
+      include: {
+        coachProfile: {
+          include: {
+            user: { select: { id: true, name: true } }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const coaches = following.map(f => ({
+      id: f.coachProfile.id,
+      userId: f.coachProfile.userId,
+      name: f.coachProfile.user.name,
+      avatar: f.coachProfile.avatar,
+      specialty: f.coachProfile.specialty,
+      rating: f.coachProfile.rating,
+      isFollowing: true
+    }));
+
+    res.json(coaches);
+  } catch (error) {
+    console.error('Error fetching following:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

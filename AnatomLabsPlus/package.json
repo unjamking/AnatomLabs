@@ -2,11 +2,13 @@
   "name": "anatomlabsplus",
   "private": true,
   "workspaces": [
-    "backend",
-    "mobile"
+    "backend"
   ],
   "scripts": {
     "dev:backend": "npm run dev --workspace=backend",
-    "dev:mobile": "npm start --workspace=mobile"
+    "dev:mobile": "cd mobile && npm start"
+  },
+  "dependencies": {
+    "@expo/config-plugins": "^8.0.0"
   }
 }

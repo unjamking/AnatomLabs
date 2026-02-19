@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { createNotification } from '../services/notifications';
 
 const router = Router();
 
@@ -13,10 +14,20 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'coachId, date, and timeSlot are required' });
     }
 
-    const coachProfile = await prisma.coachProfile.findUnique({ where: { id: coachId } });
+    // coachId here is actually the ID of the CoachProfile
+    const coachProfile = await prisma.coachProfile.findUnique({ 
+      where: { id: coachId },
+      include: { user: { select: { name: true } } }
+    });
+    
     if (!coachProfile) {
       return res.status(404).json({ error: 'Coach not found' });
     }
+
+    const client = await prisma.user.findUnique({
+      where: { id: clientId },
+      select: { name: true }
+    });
 
     const booking = await prisma.booking.create({
       data: {
@@ -32,6 +43,15 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
         coach: { select: { id: true, name: true } },
       },
     });
+
+    // Notify coach
+    await createNotification(
+      coachProfile.userId,
+      'BOOKING_REQUEST',
+      'New Booking Request',
+      `${client?.name || 'A client'} requested a session for ${timeSlot} on ${new Date(date).toLocaleDateString()}.`,
+      { bookingId: booking.id, clientId }
+    );
 
     res.status(201).json({ message: 'Booking created', booking });
   } catch (error) {
@@ -64,7 +84,10 @@ router.put('/:id/cancel', authenticateToken, async (req: AuthRequest, res: Respo
     const userId = req.userId!;
     const { id } = req.params;
 
-    const booking = await prisma.booking.findUnique({ where: { id } });
+    const booking = await prisma.booking.findUnique({ 
+      where: { id },
+      include: { client: { select: { name: true } } }
+    });
 
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found' });
@@ -82,6 +105,15 @@ router.put('/:id/cancel', authenticateToken, async (req: AuthRequest, res: Respo
       where: { id },
       data: { status: 'CANCELLED' },
     });
+
+    // Notify coach
+    await createNotification(
+      booking.coachId,
+      'BOOKING_CANCELLED',
+      'Booking Cancelled',
+      `${booking.client.name} cancelled their session for ${booking.timeSlot} on ${new Date(booking.date).toLocaleDateString()}.`,
+      { bookingId: id, clientId: userId }
+    );
 
     res.json({ message: 'Booking cancelled', booking: updated });
   } catch (error) {

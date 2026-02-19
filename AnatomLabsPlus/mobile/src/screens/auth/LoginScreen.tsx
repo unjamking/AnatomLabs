@@ -76,12 +76,6 @@ export default function LoginScreen({ navigation }: Props) {
     }
   };
 
-  const useDemoAccount = () => {
-    trigger('light');
-    setEmail('demo@anatomlabs.com');
-    setPassword('password123');
-  };
-
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -156,17 +150,6 @@ export default function LoginScreen({ navigation }: Props) {
             </AnimatedButton>
           </SlideIn>
 
-          <FadeIn delay={500}>
-            <AnimatedButton
-              title="Use Demo Account"
-              variant="ghost"
-              size="medium"
-              onPress={useDemoAccount}
-              disabled={isLoading}
-              style={styles.demoButton}
-              hapticType="light"
-            />
-          </FadeIn>
         </View>
 
         <FadeIn delay={600}>
@@ -262,9 +245,6 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     marginTop: 10,
-  },
-  demoButton: {
-    marginTop: 8,
   },
   footer: {
     alignItems: 'center',

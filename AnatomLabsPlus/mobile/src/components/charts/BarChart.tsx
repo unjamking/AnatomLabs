@@ -68,7 +68,10 @@ export default function BarChart({
     });
 
     const yCount = 4;
-    const yLbls = Array.from({ length: yCount }, (_, i) => Math.round((max / (yCount - 1)) * i));
+    const hasDecimals = data.some(d => d.value !== Math.floor(d.value));
+    const precision = hasDecimals ? 1 : 0;
+    const raw = Array.from({ length: yCount }, (_, i) => parseFloat(((max / (yCount - 1)) * i).toFixed(precision)));
+    const yLbls = raw.filter((v, i, arr) => arr.indexOf(v) === i);
 
     return { maxVal: max, bars: brs, yLabels: yLbls };
   }, [data, chartWidth, height]);
@@ -81,7 +84,10 @@ export default function BarChart({
     );
   }
 
-  const fmtVal = formatValue || ((v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${Math.round(v)}`);
+  const fmtVal = formatValue || ((v: number) => {
+    if (v >= 1000) return `${(v / 1000).toFixed(1)}k`;
+    return `${Math.round(v)}`;
+  });
 
   return (
     <View style={styles.container}>

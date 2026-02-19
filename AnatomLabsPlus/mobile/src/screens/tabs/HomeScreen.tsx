@@ -357,13 +357,29 @@ export default function HomeScreen({ navigation }: any) {
       screen: 'Bookings',
       color: '#8e44ad',
     },
-    ...(user?.isCoach ? [{
-      title: 'Coach Dashboard',
-      subtitle: 'Manage your coaching',
-      icon: 'speedometer-outline' as const,
-      screen: 'CoachDashboard',
-      color: '#d35400',
-    }] : []),
+    ...(user?.isCoach ? [
+      {
+        title: 'Coach Dashboard',
+        subtitle: 'Manage your coaching',
+        icon: 'speedometer-outline' as const,
+        screen: 'CoachDashboard',
+        color: '#d35400',
+      },
+      {
+        title: 'Post Story',
+        subtitle: 'Share a quick update',
+        icon: 'camera-outline' as const,
+        screen: 'CoachDashboard', // Or a specific PostStory screen if added later
+        color: '#e67e22',
+      },
+      {
+        title: 'Create Post',
+        subtitle: 'Add to your profile feed',
+        icon: 'add-circle-outline' as const,
+        screen: 'CoachDashboard',
+        color: '#f39c12',
+      }
+    ] : []),
   ];
 
   return (
@@ -372,13 +388,22 @@ export default function HomeScreen({ navigation }: any) {
         title="Home"
         scrollY={scrollY}
         rightElement={
-          <AnimatedButton
-            variant="ghost"
-            size="small"
-            onPress={handleLogout}
-            title="Logout"
-            textStyle={{ color: COLORS.primary }}
-          />
+          <View style={styles.headerRight}>
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('Notifications')} 
+              style={styles.notificationBtn}
+            >
+              <Ionicons name="notifications-outline" size={24} color={COLORS.text} />
+              {/* Unread dot logic could be added here */}
+            </TouchableOpacity>
+            <AnimatedButton
+              variant="ghost"
+              size="small"
+              onPress={handleLogout}
+              title="Logout"
+              textStyle={{ color: COLORS.primary }}
+            />
+          </View>
         }
       />
 
@@ -669,7 +694,7 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={styles.sectionTitle}>Quick Actions</Text>
           </FadeIn>
           {quickActions.map((action, index) => (
-            <AnimatedListItem key={action.screen} index={index} enterFrom="right">
+            <AnimatedListItem key={action.title} index={index} enterFrom="right">
               <AnimatedCard
                 onPress={() => {
                   trigger('light');
@@ -991,5 +1016,18 @@ const styles = StyleSheet.create({
   actionButtonSubtext: {
     fontSize: 13,
     color: COLORS.textSecondary,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  notificationBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

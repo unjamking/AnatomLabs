@@ -33,6 +33,10 @@ import CoachDashboardScreen from '../screens/coach/CoachDashboardScreen';
 import CoachApplicationStatusScreen from '../screens/coach/CoachApplicationStatusScreen';
 import BookingsScreen from '../screens/bookings/BookingsScreen';
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
+import NewAdminDashboardScreen from '../screens/admin/NewAdminDashboardScreen';
+
+import NotificationsScreen from '../screens/tabs/NotificationsScreen';
+import FollowerListScreen from '../screens/tabs/FollowerListScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -172,7 +176,7 @@ export default function AppNavigator() {
         {isAdmin ? (
           <Stack.Screen
             name="AdminDashboard"
-            component={AdminDashboardScreen}
+            component={NewAdminDashboardScreen}
             options={{ animation: 'fade' }}
           />
         ) : isLoggedIn ? (
@@ -274,6 +278,20 @@ export default function AppNavigator() {
             <Stack.Screen
               name="Bookings"
               component={BookingsScreen}
+              options={{
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
+              name="Notifications"
+              component={NotificationsScreen}
+              options={{
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
+              name="FollowerList"
+              component={FollowerListScreen}
               options={{
                 animation: 'slide_from_right',
               }}

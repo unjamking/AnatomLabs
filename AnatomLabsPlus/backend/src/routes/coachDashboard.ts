@@ -2,6 +2,24 @@ import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { requireCoach } from '../middleware/coach';
+import { createNotification } from '../services/notifications';
+import multer from 'multer';
+import path from 'path';
+
+const avatarStorage = multer.diskStorage({
+  destination: 'uploads/avatars',
+  filename: (_req, file, cb) => {
+    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`);
+  },
+});
+const uploadAvatar = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only image files are allowed'));
+  },
+});
 
 const router = Router();
 
@@ -48,6 +66,25 @@ router.put('/profile', authenticateToken, requireCoach, async (req: AuthRequest,
     res.json({ message: 'Profile updated', profile });
   } catch (error) {
     console.error('Error updating coach profile:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/avatar', authenticateToken, requireCoach, uploadAvatar.single('avatar') as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const file = (req as any).file;
+    if (!file) return res.status(400).json({ error: 'No image uploaded' });
+
+    const avatarUrl = `/uploads/avatars/${file.filename}`;
+
+    const profile = await prisma.coachProfile.update({
+      where: { userId: req.userId! },
+      data: { avatar: avatarUrl },
+    });
+
+    res.json({ avatarUrl, profile });
+  } catch (error) {
+    console.error('Error uploading avatar:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -155,7 +192,10 @@ router.put('/bookings/:id', authenticateToken, requireCoach, async (req: AuthReq
       return res.status(400).json({ error: 'Invalid status' });
     }
 
-    const booking = await prisma.booking.findUnique({ where: { id } });
+    const booking = await prisma.booking.findUnique({ 
+      where: { id },
+      include: { coach: { select: { name: true } } }
+    });
 
     if (!booking || booking.coachId !== req.userId!) {
       return res.status(404).json({ error: 'Booking not found' });
@@ -167,9 +207,61 @@ router.put('/bookings/:id', authenticateToken, requireCoach, async (req: AuthReq
       include: { client: { select: { id: true, name: true } } },
     });
 
+    // Notify client
+    let notifTitle = '';
+    let notifContent = '';
+    let notifType: any = '';
+
+    if (status === 'CONFIRMED') {
+      notifType = 'BOOKING_CONFIRMED';
+      notifTitle = 'Booking Confirmed!';
+      notifContent = `Your session with Coach ${booking.coach.name} for ${booking.timeSlot} on ${new Date(booking.date).toLocaleDateString()} has been confirmed.`;
+    } else if (status === 'CANCELLED') {
+      notifType = 'BOOKING_CANCELLED';
+      notifTitle = 'Booking Declined';
+      notifContent = `Coach ${booking.coach.name} was unable to accept your session for ${booking.timeSlot} on ${new Date(booking.date).toLocaleDateString()}.`;
+    }
+
+    if (notifType) {
+      await createNotification(
+        booking.clientId,
+        notifType,
+        notifTitle,
+        notifContent,
+        { bookingId: id, coachId: req.userId! }
+      );
+    }
+
     res.json({ message: 'Booking updated', booking: updated });
   } catch (error) {
     console.error('Error updating booking:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/followers', authenticateToken, requireCoach, async (req: AuthRequest, res: Response) => {
+  try {
+    const profile = await prisma.coachProfile.findUnique({ where: { userId: req.userId! } });
+    if (!profile) return res.status(404).json({ error: 'Coach profile not found' });
+
+    const followers = await prisma.follow.findMany({
+      where: { coachProfileId: profile.id },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const followerUsers = followers.map(f => ({
+      id: f.user.id,
+      name: f.user.name,
+      email: f.user.email,
+      followedAt: f.createdAt,
+    }));
+
+    res.json(followerUsers);
+  } catch (error) {
+    console.error('Error fetching followers:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

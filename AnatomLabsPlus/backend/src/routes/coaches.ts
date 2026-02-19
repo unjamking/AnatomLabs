@@ -1,12 +1,14 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { createNotification } from '../services/notifications';
 
 const router = Router();
 
 router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { search, specialty } = req.query;
+    const currentUserId = req.userId;
 
     const where: any = {};
 
@@ -31,6 +33,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
           where: { expiresAt: { gt: new Date() } },
           orderBy: { createdAt: 'desc' },
         },
+        followers: currentUserId ? { where: { userId: currentUserId } } : false,
       },
       orderBy: { rating: 'desc' },
     });
@@ -48,6 +51,8 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
       experience: p.experience,
       certifications: p.certifications,
       clientCount: p.clientCount,
+      followerCount: p.followerCount,
+      isFollowing: p.followers && p.followers.length > 0,
       verified: p.verified,
       availability: p.availability,
       stories: p.stories.map(s => ({
@@ -78,6 +83,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
 router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+    const currentUserId = req.userId;
 
     const profile = await prisma.coachProfile.findUnique({
       where: { id },
@@ -88,6 +94,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
           where: { expiresAt: { gt: new Date() } },
           orderBy: { createdAt: 'desc' },
         },
+        followers: currentUserId ? { where: { userId: currentUserId } } : false,
       },
     });
 
@@ -108,6 +115,8 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
       experience: profile.experience,
       certifications: profile.certifications,
       clientCount: profile.clientCount,
+      followerCount: profile.followerCount,
+      isFollowing: profile.followers && profile.followers.length > 0,
       verified: profile.verified,
       availability: profile.availability,
       stories: profile.stories.map(s => ({
@@ -131,6 +140,82 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
     res.json(coach);
   } catch (error) {
     console.error('Error fetching coach:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/:id/follow', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId!;
+
+    const coachProfile = await prisma.coachProfile.findUnique({ 
+      where: { id },
+      include: { user: { select: { name: true } } }
+    });
+    if (!coachProfile) return res.status(404).json({ error: 'Coach not found' });
+
+    if (coachProfile.userId === userId) {
+      return res.status(400).json({ error: 'You cannot follow yourself' });
+    }
+
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true }
+    });
+
+    await prisma.$transaction([
+      prisma.follow.upsert({
+        where: { userId_coachProfileId: { userId, coachProfileId: id } },
+        create: { userId, coachProfileId: id },
+        update: {},
+      }),
+      prisma.coachProfile.update({
+        where: { id },
+        data: { followerCount: { increment: 1 } },
+      }),
+    ]);
+
+    // Create notification for coach
+    await createNotification(
+      coachProfile.userId,
+      'FOLLOW',
+      'New Follower',
+      `${currentUser?.name || 'Someone'} started following you!`,
+      { followerId: userId }
+    );
+
+    res.json({ message: 'Followed successfully' });
+  } catch (error) {
+    console.error('Error following coach:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/:id/unfollow', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId!;
+
+    const follow = await prisma.follow.findUnique({
+      where: { userId_coachProfileId: { userId, coachProfileId: id } },
+    });
+
+    if (!follow) return res.status(400).json({ error: 'You are not following this coach' });
+
+    await prisma.$transaction([
+      prisma.follow.delete({
+        where: { userId_coachProfileId: { userId, coachProfileId: id } },
+      }),
+      prisma.coachProfile.update({
+        where: { id },
+        data: { followerCount: { decrement: 1 } },
+      }),
+    ]);
+
+    res.json({ message: 'Unfollowed successfully' });
+  } catch (error) {
+    console.error('Error unfollowing coach:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

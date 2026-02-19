@@ -65,6 +65,8 @@ model User {
   bookingsAsCoach  Booking[]      @relation("CoachBookings")
   sentMessages     Message[]
   conversationParticipants ConversationParticipant[]
+  follows          Follow[]
+  notifications    Notification[]
 
   @@map("users")
 }
@@ -120,7 +122,8 @@ model Exercise {
   // Biomechanics explanation
   mechanicalLoad  String   @db.Text  // Explanation of forces and load
   jointInvolvement String  @db.Text  // Which joints are involved
-  
+  videoUrl        String?  // URL for the exercise demonstration video
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
@@ -615,6 +618,7 @@ model CoachProfile {
   rating        Float    @default(0)
   reviewCount   Int      @default(0)
   clientCount   Int      @default(0)
+  followerCount Int      @default(0)
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -622,8 +626,22 @@ model CoachProfile {
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   posts         CoachPost[]
   stories       CoachStory[]
+  followers     Follow[]      @relation("CoachFollowers")
 
   @@map("coach_profiles")
+}
+
+model Follow {
+  id             String   @id @default(uuid())
+  userId         String
+  coachProfileId String
+  createdAt      DateTime @default(now())
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  coachProfile   CoachProfile @relation("CoachFollowers", fields: [coachProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, coachProfileId])
+  @@map("follows")
 }
 
 model CoachPost {
@@ -712,4 +730,20 @@ model Message {
   sender          User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
   @@map("messages")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // FOLLOW, BOOKING_REQUEST, BOOKING_CONFIRMED, BOOKING_CANCELLED, SYSTEM
+  title     String
+  content   String   @db.Text
+  data      Json?    // { bookingId, coachId, postId, etc }
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("notifications")
 }

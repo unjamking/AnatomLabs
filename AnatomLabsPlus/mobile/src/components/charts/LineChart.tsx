@@ -49,15 +49,18 @@ export default function LineChart({
     const min = Math.min(...values);
     const max = Math.max(...values);
     const range = max - min || 1;
-    const minV = min - range * 0.1;
+    const minV = Math.max(0, min - range * 0.1);
     const maxV = max + range * 0.1;
-    const yRange = maxV - minV;
+    const yRange = maxV - minV || 1;
 
     const yLabelCount = 4;
-    const yLbls = Array.from({ length: yLabelCount }, (_, i) => {
-      const val = minV + (yRange / (yLabelCount - 1)) * i;
-      return Math.round(val * 10) / 10;
-    });
+    const rawLabels = Array.from({ length: yLabelCount }, (_, i) =>
+      minV + (yRange / (yLabelCount - 1)) * i
+    );
+    const hasDecimals = values.some(v => v !== Math.floor(v));
+    const precision = hasDecimals && yRange < 4 ? 1 : 0;
+    const rounded = rawLabels.map(v => parseFloat(v.toFixed(precision)));
+    const yLbls = rounded.filter((v, i, arr) => arr.indexOf(v) === i);
 
     const pts = data.map((d, i) => ({
       x: padding.left + (i / Math.max(data.length - 1, 1)) * innerWidth,
@@ -91,7 +94,10 @@ export default function LineChart({
     );
   }
 
-  const fmtY = formatYLabel || ((v: number) => `${Math.round(v)}${yAxisSuffix}`);
+  const fmtY = formatYLabel || ((v: number) => {
+    if (v >= 1000) return `${(v / 1000).toFixed(1)}k${yAxisSuffix}`;
+    return `${Math.round(v)}${yAxisSuffix}`;
+  });
   const xLabelInterval = Math.max(1, Math.floor(data.length / 5));
 
   return (
