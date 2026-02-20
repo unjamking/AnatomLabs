@@ -3,8 +3,9 @@ dist/
 .env
 .env.local
 *.log
-uploads/avatars/*
-uploads/posts/*
-!uploads/avatars/.gitkeep
-!uploads/posts/.gitkeep
+**/uploads/avatars/*
+**/uploads/posts/*
+**/uploads/certifications/*
+!**/uploads/avatars/.gitkeep
+!**/uploads/posts/.gitkeep
 .expo/
