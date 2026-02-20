@@ -3,7 +3,6 @@ import prisma from '../lib/prisma';
 
 const router = Router();
 
-// GET /api/body-parts
 router.get('/', async (req: Request, res: Response) => {
   try {
     const { category, search } = req.query;
@@ -50,7 +49,6 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/body-parts/:id
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -82,7 +80,6 @@ router.get('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Body part not found' });
     }
 
-    // Transform exercises to flat format expected by mobile
     const transformedBodyPart = {
       ...bodyPart,
       exercises: bodyPart.exercises.map((eb: any) => ({

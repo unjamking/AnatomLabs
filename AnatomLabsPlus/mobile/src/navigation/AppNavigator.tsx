@@ -30,6 +30,7 @@ import HealthProfileScreen from '../screens/tabs/HealthProfileScreen';
 import ConversationsListScreen from '../screens/messaging/ConversationsListScreen';
 import ConversationScreen from '../screens/messaging/ConversationScreen';
 import CoachDashboardScreen from '../screens/coach/CoachDashboardScreen';
+import CoachProfileScreen from '../screens/coach/CoachProfileScreen';
 import CoachApplicationStatusScreen from '../screens/coach/CoachApplicationStatusScreen';
 import BookingsScreen from '../screens/bookings/BookingsScreen';
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
@@ -169,15 +170,15 @@ export default function AppNavigator() {
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
-          animation: 'fade_from_bottom',
-          animationDuration: 250,
+          animation: 'slide_from_right',
+          animationDuration: 300,
         }}
       >
         {isAdmin ? (
           <Stack.Screen
             name="AdminDashboard"
             component={NewAdminDashboardScreen}
-            options={{ animation: 'fade' }}
+            options={{ animation: 'fade', animationDuration: 400 }}
           />
         ) : isLoggedIn ? (
           <>
@@ -186,22 +187,11 @@ export default function AppNavigator() {
               component={TabNavigator}
               options={{
                 animation: 'fade',
+                animationDuration: 400,
               }}
             />
-            <Stack.Screen
-              name="NutritionTracking"
-              component={NutritionTrackingScreen}
-              options={{
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="WorkoutTracking"
-              component={WorkoutTrackingScreen}
-              options={{
-                animation: 'slide_from_right',
-              }}
-            />
+            <Stack.Screen name="NutritionTracking" component={NutritionTrackingScreen} />
+            <Stack.Screen name="WorkoutTracking" component={WorkoutTrackingScreen} />
             <Stack.Screen
               name="BarcodeScanner"
               component={BarcodeScannerScreen}
@@ -210,20 +200,8 @@ export default function AppNavigator() {
                 presentation: 'fullScreenModal',
               }}
             />
-            <Stack.Screen
-              name="ScannedFoodDetails"
-              component={ScannedFoodDetailsScreen}
-              options={{
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="ManualFoodEntry"
-              component={ManualFoodEntryScreen}
-              options={{
-                animation: 'slide_from_right',
-              }}
-            />
+            <Stack.Screen name="ScannedFoodDetails" component={ScannedFoodDetailsScreen} />
+            <Stack.Screen name="ManualFoodEntry" component={ManualFoodEntryScreen} />
             <Stack.Screen
               name="FoodScanner"
               component={FoodScannerScreen}
@@ -240,62 +218,15 @@ export default function AppNavigator() {
                 presentation: 'fullScreenModal',
               }}
             />
-            <Stack.Screen
-              name="HealthProfile"
-              component={HealthProfileScreen}
-              options={{
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="Conversations"
-              component={ConversationsListScreen}
-              options={{
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="Conversation"
-              component={ConversationScreen}
-              options={{
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="CoachDashboard"
-              component={CoachDashboardScreen}
-              options={{
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="CoachApplicationStatus"
-              component={CoachApplicationStatusScreen}
-              options={{
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="Bookings"
-              component={BookingsScreen}
-              options={{
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="Notifications"
-              component={NotificationsScreen}
-              options={{
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="FollowerList"
-              component={FollowerListScreen}
-              options={{
-                animation: 'slide_from_right',
-              }}
-            />
+            <Stack.Screen name="HealthProfile" component={HealthProfileScreen} />
+            <Stack.Screen name="Conversations" component={ConversationsListScreen} />
+            <Stack.Screen name="Conversation" component={ConversationScreen} />
+            <Stack.Screen name="CoachDashboard" component={CoachDashboardScreen} />
+            <Stack.Screen name="CoachProfile" component={CoachProfileScreen} />
+            <Stack.Screen name="CoachApplicationStatus" component={CoachApplicationStatusScreen} />
+            <Stack.Screen name="Bookings" component={BookingsScreen} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="FollowerList" component={FollowerListScreen} />
           </>
         ) : (
           <>
@@ -304,15 +235,10 @@ export default function AppNavigator() {
               component={LoginScreen}
               options={{
                 animation: 'fade',
+                animationDuration: 400,
               }}
             />
-            <Stack.Screen
-              name="Register"
-              component={RegisterScreen}
-              options={{
-                animation: 'slide_from_right',
-              }}
-            />
+            <Stack.Screen name="Register" component={RegisterScreen} />
           </>
         )}
       </Stack.Navigator>

@@ -4,7 +4,6 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
-// Get all notifications for current user
 router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const notifications = await prisma.notification.findMany({
@@ -20,7 +19,6 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Mark notification as read
 router.put('/:id/read', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const notification = await prisma.notification.findUnique({
@@ -43,7 +41,6 @@ router.put('/:id/read', authenticateToken, async (req: AuthRequest, res: Respons
   }
 });
 
-// Mark all as read
 router.post('/read-all', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     await prisma.notification.updateMany({

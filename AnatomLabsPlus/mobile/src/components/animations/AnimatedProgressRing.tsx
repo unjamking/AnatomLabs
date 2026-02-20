@@ -13,7 +13,7 @@ import { ANIMATION_DURATION, EASING, COLORS } from './config';
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 interface AnimatedProgressRingProps {
-  progress: number; // 0-100
+  progress: number;
   size: number;
   strokeWidth: number;
   color?: string;
@@ -68,7 +68,6 @@ export default function AnimatedProgressRing({
   return (
     <Animated.View style={[styles.container, { width: size, height: size }, containerStyle]}>
       <Svg width={size} height={size} style={styles.svg}>
-        {/* Background circle */}
         <Circle
           cx={center}
           cy={center}
@@ -77,7 +76,6 @@ export default function AnimatedProgressRing({
           strokeWidth={strokeWidth}
           fill="transparent"
         />
-        {/* Progress circle */}
         <AnimatedCircle
           cx={center}
           cy={center}

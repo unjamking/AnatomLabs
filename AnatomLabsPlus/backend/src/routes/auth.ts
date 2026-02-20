@@ -3,10 +3,10 @@ import bcrypt from 'bcryptjs';
 import prisma from '../lib/prisma';
 import { generateToken } from '../middleware/auth';
 import { analyzeBMI, canCalculateBMI } from '../services/bmiCalculator';
+import { containsInappropriateContent, getContentError } from '../services/contentFilter';
 
 const router = Router();
 
-// POST /api/auth/register
 router.post('/register', async (req: Request, res: Response) => {
   try {
     const {
@@ -20,16 +20,18 @@ router.post('/register', async (req: Request, res: Response) => {
       activityLevel,
       experienceLevel,
       goal,
-      // Health profile fields (optional)
       healthConditions,
       physicalLimitations,
       foodAllergies,
       dietaryPreferences
     } = req.body;
 
-    // Validate required fields
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'Email, password, and name are required' });
+    }
+
+    if (containsInappropriateContent(name)) {
+      return res.status(400).json({ error: getContentError('Name') });
     }
 
     if (!email.includes('@')) {
@@ -40,7 +42,6 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters long' });
     }
 
-    // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email }
     });
@@ -49,10 +50,8 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(409).json({ error: 'User with this email already exists' });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Calculate BMI if weight and height are provided
     let bmiData: { bmi?: number; bmiCategory?: string } = {};
     if (canCalculateBMI(weight, height)) {
       const bmiResult = analyzeBMI(weight, height, goal || undefined);
@@ -62,21 +61,18 @@ router.post('/register', async (req: Request, res: Response) => {
       };
     }
 
-    // Validate array fields
     const validateArray = (arr: unknown): string[] => {
       if (!arr) return [];
       if (!Array.isArray(arr)) return [];
       return arr.filter(item => typeof item === 'string');
     };
 
-    // Check if health profile was provided
     const hasHealthProfile =
       (healthConditions && healthConditions.length > 0) ||
       (physicalLimitations && physicalLimitations.length > 0) ||
       (foodAllergies && foodAllergies.length > 0) ||
       (dietaryPreferences && dietaryPreferences.length > 0);
 
-    // Create user
     const user = await prisma.user.create({
       data: {
         email,
@@ -120,7 +116,6 @@ router.post('/register', async (req: Request, res: Response) => {
       }
     });
 
-    // Generate JWT token
     const token = generateToken(user.id);
 
     res.status(201).json({
@@ -134,17 +129,14 @@ router.post('/register', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/auth/login
 router.post('/login', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
-    // Validate required fields
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Find user by email
     const user = await prisma.user.findUnique({
       where: { email }
     });
@@ -153,17 +145,14 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    // Generate JWT token
     const token = generateToken(user.id);
 
-    // Return user data without password
     const { password: _, ...userWithoutPassword } = user;
 
     res.status(200).json({

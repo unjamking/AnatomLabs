@@ -404,7 +404,7 @@ export default function RegisterScreen({ navigation }: Props) {
       style={styles.stepContainer}
     >
       <Animated.Text entering={FadeIn.delay(100)} style={styles.stepTitle}>Health Profile</Animated.Text>
-      <Animated.Text entering={FadeIn.delay(150)} style={styles.stepSubtitle}>Step 4 of 4 - Optional, helps personalize your experience</Animated.Text>
+      <Animated.Text entering={FadeIn.delay(150)} style={styles.stepSubtitle}>Step 4 of 4 — Personalizes your workouts & nutrition</Animated.Text>
 
       {loadingHealthOptions ? (
         <View style={styles.loadingContainer}>
@@ -494,21 +494,17 @@ export default function RegisterScreen({ navigation }: Props) {
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={styles.logo}>AnatomLabs+</Text>
+          <Text style={styles.logo}>AnatomLabs<Text style={{ color: '#e74c3c' }}>+</Text></Text>
         </View>
 
-        {/* Progress indicator */}
         <View style={styles.progressContainer}>
           {[1, 2, 3, 4].map((s) => (
-            <Animated.View
-              key={s}
-              layout={Layout.springify()}
-              style={[
-                styles.progressDot,
-                s <= step && styles.progressDotActive,
-                s === step && styles.progressDotCurrent,
-              ]}
-            />
+            <View key={s} style={styles.progressSegmentWrap}>
+              <Animated.View
+                layout={Layout.springify()}
+                style={[styles.progressSegment, s <= step && styles.progressSegmentActive]}
+              />
+            </View>
           ))}
         </View>
 
@@ -593,60 +589,67 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 30,
+    gap: 6,
+    marginBottom: 32,
   },
-  progressDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  progressSegmentWrap: {
+    flex: 1,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#222',
+    overflow: 'hidden',
+  },
+  progressSegment: {
+    flex: 1,
+    height: '100%',
+    borderRadius: 2,
     backgroundColor: '#333',
   },
-  progressDotActive: {
+  progressSegmentActive: {
     backgroundColor: '#e74c3c',
-  },
-  progressDotCurrent: {
-    width: 24,
-    borderRadius: 12,
   },
   stepContainer: {
     flex: 1,
   },
   stepTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '800',
     color: '#fff',
-    marginBottom: 8,
+    marginBottom: 6,
+    letterSpacing: -0.3,
   },
   stepSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#888',
-    marginBottom: 30,
+    marginBottom: 28,
+    lineHeight: 18,
   },
   input: {
     backgroundColor: '#1a1a1a',
     borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 12,
+    borderColor: '#2a2a2a',
+    borderRadius: 14,
     padding: 16,
-    fontSize: 16,
+    fontSize: 15,
     color: '#fff',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   pickerContainer: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   pickerLabel: {
-    fontSize: 14,
-    color: '#888',
-    marginBottom: 8,
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    marginBottom: 6,
   },
   pickerWrapper: {
     backgroundColor: '#1a1a1a',
     borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 12,
+    borderColor: '#2a2a2a',
+    borderRadius: 14,
     overflow: 'hidden',
   },
   picker: {
@@ -655,36 +658,36 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 20,
+    gap: 10,
+    marginTop: 24,
   },
   backButton: {
     flex: 1,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#2a2a2a',
     alignItems: 'center',
   },
   backButtonText: {
-    color: '#888',
-    fontSize: 16,
+    color: '#666',
+    fontSize: 15,
     fontWeight: '600',
   },
   nextButton: {
     flex: 2,
     backgroundColor: '#e74c3c',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
   },
   nextButtonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
   buttonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   loginLink: {
     marginTop: 20,
@@ -692,12 +695,12 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   loginLinkText: {
-    color: '#888',
+    color: '#666',
     fontSize: 14,
   },
   loginLinkBold: {
     color: '#e74c3c',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   // Step 4 styles
   healthScrollView: {
@@ -733,20 +736,20 @@ const styles = StyleSheet.create({
   step4Buttons: {
     flex: 2,
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
   skipButton: {
     flex: 1,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#2a2a2a',
     alignItems: 'center',
     justifyContent: 'center',
   },
   skipButtonText: {
-    color: '#888',
-    fontSize: 16,
+    color: '#666',
+    fontSize: 15,
     fontWeight: '600',
   },
   completeButton: {

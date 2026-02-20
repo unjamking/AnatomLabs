@@ -43,7 +43,6 @@ export function useAnimatedValue(options: UseAnimatedValueOptions = {}) {
 
   useEffect(() => {
     if (autoStart) {
-      // Small delay to ensure component is mounted
       const timeout = setTimeout(() => animate(), 50);
       return () => clearTimeout(timeout);
     }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,15 +8,23 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Image,
+  Modal,
+  StatusBar,
+  Platform,
 } from 'react-native';
-import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown, ZoomIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import MultiSelectChips, { CollapsibleSection } from '../../components/forms/MultiSelectChips';
-import { COLORS } from '../../components/animations';
+import { COLORS, useHaptics } from '../../components/animations';
 
-type SectionKey = 'physical' | 'health' | 'allergies' | 'dietary' | null;
+type SectionKey = 'avatar' | 'physical' | 'health' | 'allergies' | 'dietary' | null;
 
 interface HealthOptions {
   physicalLimitations: { id: string; name: string; description: string }[];
@@ -30,10 +38,12 @@ interface HealthProfile {
   healthConditions: string[];
   foodAllergies: string[];
   dietaryPreferences: string[];
+  avatar?: string;
 }
 
 export default function HealthProfileScreen({ navigation }: any) {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
+  const { trigger } = useHaptics();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -47,15 +57,21 @@ export default function HealthProfileScreen({ navigation }: any) {
   const [healthConditions, setHealthConditions] = useState<string[]>([]);
   const [foodAllergies, setFoodAllergies] = useState<string[]>([]);
   const [dietaryPreferences, setDietaryPreferences] = useState<string[]>([]);
+  const [avatar, setAvatar] = useState<string | null>(user?.avatar || null);
 
   // Original values for comparison
   const [originalProfile, setOriginalProfile] = useState<HealthProfile | null>(null);
 
   // Accordion state - only one section open at a time
-  const [expandedSection, setExpandedSection] = useState<SectionKey>(null);
+  const [expandedSection, setExpandedSection] = useState<SectionKey>('avatar');
+
+  // Camera state
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const cameraRef = useRef<any>(null);
+  const [cameraVisible, setCameraVisible] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState<'front' | 'back'>('front');
 
   const handleSectionToggle = (section: SectionKey) => {
-    // If clicking the same section, close it. Otherwise, open the new one (and close others)
     setExpandedSection(expandedSection === section ? null : section);
   };
 
@@ -70,15 +86,15 @@ export default function HealthProfileScreen({ navigation }: any) {
         JSON.stringify(physicalLimitations.sort()) !== JSON.stringify(originalProfile.physicalLimitations.sort()) ||
         JSON.stringify(healthConditions.sort()) !== JSON.stringify(originalProfile.healthConditions.sort()) ||
         JSON.stringify(foodAllergies.sort()) !== JSON.stringify(originalProfile.foodAllergies.sort()) ||
-        JSON.stringify(dietaryPreferences.sort()) !== JSON.stringify(originalProfile.dietaryPreferences.sort());
+        JSON.stringify(dietaryPreferences.sort()) !== JSON.stringify(originalProfile.dietaryPreferences.sort()) ||
+        avatar !== originalProfile.avatar;
       setHasChanges(changed);
     }
-  }, [physicalLimitations, healthConditions, foodAllergies, dietaryPreferences, originalProfile]);
+  }, [physicalLimitations, healthConditions, foodAllergies, dietaryPreferences, avatar, originalProfile]);
 
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // Load health options and user profile in parallel
       const [options, profile] = await Promise.all([
         api.getHealthConditions(),
         api.getUserProfile(),
@@ -86,24 +102,59 @@ export default function HealthProfileScreen({ navigation }: any) {
 
       setHealthOptions(options);
 
-      // Set current user selections
       const currentProfile: HealthProfile = {
         physicalLimitations: profile.physicalLimitations || [],
         healthConditions: profile.healthConditions || [],
         foodAllergies: profile.foodAllergies || [],
         dietaryPreferences: profile.dietaryPreferences || [],
+        avatar: user?.avatar || undefined,
       };
 
       setPhysicalLimitations(currentProfile.physicalLimitations);
       setHealthConditions(currentProfile.healthConditions);
       setFoodAllergies(currentProfile.foodAllergies);
       setDietaryPreferences(currentProfile.dietaryPreferences);
+      setAvatar(user?.avatar || null);
       setOriginalProfile(currentProfile);
     } catch (error) {
       console.error('Error loading health profile:', error);
       Alert.alert('Error', 'Failed to load health profile. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const openCamera = async () => {
+    trigger('medium');
+    if (!cameraPermission?.granted) {
+      const r = await requestCameraPermission();
+      if (!r.granted) { Alert.alert('Camera access needed', 'Allow camera in Settings.'); return; }
+    }
+    setCameraVisible(true);
+  };
+
+  const pickFromRoll = async () => {
+    trigger('light');
+    const r = await ImagePicker.launchImageLibraryAsync({ 
+      mediaTypes: ImagePicker.MediaTypeOptions.Images, 
+      allowsEditing: true, 
+      aspect: [1, 1], 
+      quality: 0.85 
+    });
+    if (!r.canceled && r.assets?.length > 0) {
+      setAvatar(r.assets[0].uri);
+    }
+  };
+
+  const takePhoto = async () => {
+    if (!cameraRef.current) return;
+    trigger('medium');
+    try {
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.85, base64: false });
+      setAvatar(photo.uri);
+      setCameraVisible(false);
+    } catch (e) {
+      console.error('Take photo error:', e);
     }
   };
 
@@ -118,6 +169,14 @@ export default function HealthProfileScreen({ navigation }: any) {
 
     setIsSaving(true);
     try {
+      let finalAvatar = avatar;
+      
+      // If avatar is a local file, upload it first
+      if (avatar && (avatar.startsWith('file://') || avatar.startsWith('content://'))) {
+        const { avatarUrl } = await api.uploadAvatar(avatar);
+        finalAvatar = avatarUrl;
+      }
+
       await api.updateHealthProfile({
         physicalLimitations,
         healthConditions,
@@ -125,19 +184,29 @@ export default function HealthProfileScreen({ navigation }: any) {
         dietaryPreferences,
       });
 
-      // Update original profile to reflect saved state
+      // Update global context
+      updateUser({ 
+        avatar: finalAvatar || undefined,
+        physicalLimitations,
+        healthConditions,
+        foodAllergies,
+        dietaryPreferences,
+        healthProfileComplete: true
+      });
+
       setOriginalProfile({
         physicalLimitations,
         healthConditions,
         foodAllergies,
         dietaryPreferences,
+        avatar: finalAvatar || undefined,
       });
 
       setHasChanges(false);
-      Alert.alert('Success', 'Your health profile has been updated. Your workout and nutrition recommendations will now reflect these changes.');
+      Alert.alert('Success', 'Your profile has been updated.');
     } catch (error) {
-      console.error('Error saving health profile:', error);
-      Alert.alert('Error', 'Failed to save health profile. Please try again.');
+      console.error('Error saving profile:', error);
+      Alert.alert('Error', 'Failed to save profile. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -159,6 +228,7 @@ export default function HealthProfileScreen({ navigation }: any) {
             setHealthConditions(originalProfile.healthConditions);
             setFoodAllergies(originalProfile.foodAllergies);
             setDietaryPreferences(originalProfile.dietaryPreferences);
+            setAvatar(originalProfile.avatar || null);
           },
         },
       ]
@@ -168,6 +238,8 @@ export default function HealthProfileScreen({ navigation }: any) {
   const getTotalSelected = () => {
     return physicalLimitations.length + healthConditions.length + foodAllergies.length + dietaryPreferences.length;
   };
+
+  const initials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase();
 
   if (isLoading) {
     return (
@@ -180,18 +252,14 @@ export default function HealthProfileScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Health Profile</Text>
-          {getTotalSelected() > 0 && (
-            <View style={styles.headerBadge}>
-              <Text style={styles.headerBadgeText}>{getTotalSelected()}</Text>
-            </View>
-          )}
+          <Text style={styles.headerTitle}>Profile Settings</Text>
         </View>
         <View style={styles.headerActions}>
           {hasChanges && (
@@ -202,14 +270,6 @@ export default function HealthProfileScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* Info Banner */}
-      <View style={styles.infoBanner}>
-        <Ionicons name="information-circle" size={20} color="#3498db" />
-        <Text style={styles.infoBannerText}>
-          Your health profile personalizes workout recommendations and nutrition targets. This information is private and used only to improve your experience.
-        </Text>
-      </View>
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -218,6 +278,40 @@ export default function HealthProfileScreen({ navigation }: any) {
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.primary} />
         }
       >
+        {/* Profile Photo Section */}
+        <CollapsibleSection
+          title="Profile Photo"
+          isExpanded={expandedSection === 'avatar'}
+          onToggle={() => handleSectionToggle('avatar')}
+          accentColor={COLORS.primary}
+        >
+          <View style={styles.avatarSection}>
+            <View style={[styles.avatarRing, { borderColor: user?.isCoach ? COLORS.primary : '#3498db' }]}>
+              {avatar ? (
+                <Image source={{ uri: avatar }} style={styles.avatarImg} />
+              ) : (
+                <LinearGradient colors={[user?.isCoach ? COLORS.primary : '#3498db', '#1a1a1a']} style={styles.avatarGrad}>
+                  <Text style={styles.avatarText}>{initials(user?.name || '')}</Text>
+                </LinearGradient>
+              )}
+            </View>
+            <View style={styles.avatarBtns}>
+              <TouchableOpacity style={styles.avatarBtn} onPress={openCamera}>
+                <LinearGradient colors={[COLORS.cardBackground, '#111']} style={styles.avatarBtnGrad}>
+                  <Ionicons name="camera" size={20} color={COLORS.text} />
+                  <Text style={styles.avatarBtnText}>Take Photo</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.avatarBtn} onPress={pickFromRoll}>
+                <LinearGradient colors={[COLORS.cardBackground, '#111']} style={styles.avatarBtnGrad}>
+                  <Ionicons name="images" size={20} color={COLORS.text} />
+                  <Text style={styles.avatarBtnText}>Choose Library</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </CollapsibleSection>
+
         {healthOptions && (
           <>
             {/* Physical Limitations */}
@@ -311,53 +405,6 @@ export default function HealthProfileScreen({ navigation }: any) {
                 accentColor="#2ecc71"
               />
             </CollapsibleSection>
-
-            {/* Summary of what these settings affect */}
-            {getTotalSelected() > 0 && (
-              <Animated.View
-                entering={FadeIn.duration(300)}
-                exiting={FadeOut.duration(200)}
-                style={styles.summaryCard}
-              >
-                <Text style={styles.summaryTitle}>How this affects your experience:</Text>
-
-                {physicalLimitations.length > 0 && (
-                  <View style={styles.summaryItem}>
-                    <Ionicons name="fitness-outline" size={18} color="#e74c3c" />
-                    <Text style={styles.summaryText}>
-                      Workouts will exclude or modify {physicalLimitations.length} types of exercises
-                    </Text>
-                  </View>
-                )}
-
-                {healthConditions.length > 0 && (
-                  <View style={styles.summaryItem}>
-                    <Ionicons name="medical-outline" size={18} color="#9b59b6" />
-                    <Text style={styles.summaryText}>
-                      Nutrition targets adjusted for {healthConditions.length} health condition(s)
-                    </Text>
-                  </View>
-                )}
-
-                {foodAllergies.length > 0 && (
-                  <View style={styles.summaryItem}>
-                    <Ionicons name="warning-outline" size={18} color="#f39c12" />
-                    <Text style={styles.summaryText}>
-                      Allergy warnings for {foodAllergies.length} food type(s)
-                    </Text>
-                  </View>
-                )}
-
-                {dietaryPreferences.length > 0 && (
-                  <View style={styles.summaryItem}>
-                    <Ionicons name="leaf-outline" size={18} color="#2ecc71" />
-                    <Text style={styles.summaryText}>
-                      Food suggestions filtered by {dietaryPreferences.length} dietary preference(s)
-                    </Text>
-                  </View>
-                )}
-              </Animated.View>
-            )}
           </>
         )}
       </ScrollView>
@@ -385,6 +432,27 @@ export default function HealthProfileScreen({ navigation }: any) {
           </TouchableOpacity>
         </Animated.View>
       )}
+
+      {/* Camera Modal */}
+      <Modal visible={cameraVisible} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setCameraVisible(false)}>
+        <View style={styles.camRoot}>
+          <StatusBar barStyle="light-content" />
+          <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing={cameraFacing} />
+          <SafeAreaView style={styles.camTop}>
+            <TouchableOpacity style={styles.camBtn} onPress={() => setCameraVisible(false)}>
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.camBtn} onPress={() => setCameraFacing(f => f === 'back' ? 'front' : 'back')}>
+              <Ionicons name="camera-reverse-outline" size={26} color="#fff" />
+            </TouchableOpacity>
+          </SafeAreaView>
+          <View style={styles.camShutter}>
+            <TouchableOpacity style={styles.shutterBtn} onPress={takePhoto}>
+              <View style={styles.shutterInner} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -408,7 +476,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingHorizontal: 20,
     paddingBottom: 16,
     backgroundColor: COLORS.background,
@@ -421,25 +489,11 @@ const styles = StyleSheet.create({
   },
   headerTitleContainer: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: COLORS.text,
-  },
-  headerBadge: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginLeft: 8,
-  },
-  headerBadgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
   },
   headerActions: {
     flexDirection: 'row',
@@ -447,30 +501,12 @@ const styles = StyleSheet.create({
   resetButton: {
     padding: 8,
   },
-  infoBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: 'rgba(52, 152, 219, 0.1)',
-    marginHorizontal: 16,
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(52, 152, 219, 0.2)',
-  },
-  infoBannerText: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 13,
-    color: COLORS.text,
-    lineHeight: 18,
-  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
   sectionInfo: {
     marginBottom: 12,
@@ -481,39 +517,69 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     lineHeight: 18,
   },
-  summaryCard: {
-    backgroundColor: COLORS.cardBackground,
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 16,
+  avatarSection: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    gap: 20,
+  },
+  avatarRing: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarImg: {
+    width: 106,
+    height: 106,
+    borderRadius: 53,
+  },
+  avatarGrad: {
+    width: 106,
+    height: 106,
+    borderRadius: 53,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    color: '#fff',
+    fontSize: 36,
+    fontWeight: 'bold',
+  },
+  avatarBtns: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  avatarBtn: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  summaryTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 12,
-  },
-  summaryItem: {
+  avatarBtnGrad: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
   },
-  summaryText: {
-    flex: 1,
-    marginLeft: 10,
+  avatarBtnText: {
+    color: COLORS.text,
     fontSize: 14,
-    color: COLORS.textSecondary,
+    fontWeight: '600',
   },
   saveContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.background,
+    backgroundColor: 'rgba(10,10,10,0.9)',
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 16,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
   },
@@ -533,5 +599,46 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  camRoot: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  camTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 20,
+  },
+  camBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  camShutter: {
+    position: 'absolute',
+    bottom: 60,
+    alignSelf: 'center',
+  },
+  shutterBtn: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 4,
+    borderColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shutterInner: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#fff',
   },
 });

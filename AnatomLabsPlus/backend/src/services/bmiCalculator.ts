@@ -1,12 +1,3 @@
-/**
- * BMI Calculator Service
- *
- * Implements BMI calculation, categorization, and analysis
- * based on WHO standards.
- *
- * BMI = weight(kg) / height(m)²
- */
-
 export interface BMICategoryInfo {
   category: string;
   categoryId: string;
@@ -17,8 +8,8 @@ export interface BMICategoryInfo {
 }
 
 export interface IdealWeightRange {
-  min: number; // kg
-  max: number; // kg
+  min: number;
+  max: number;
   message: string;
 }
 
@@ -29,18 +20,17 @@ export interface BMIResult {
   healthRisk: string;
   color: string;
   idealWeightRange: IdealWeightRange;
-  weightToIdeal: number; // negative = need to lose, positive = need to gain
+  weightToIdeal: number;
   recommendation: string;
   percentile?: number;
 }
 
-// BMI Categories based on WHO standards
 const BMI_CATEGORIES: BMICategoryInfo[] = [
   {
     category: 'Severely Underweight',
     categoryId: 'severely_underweight',
     healthRisk: 'Very High',
-    color: '#9b59b6', // purple
+    color: '#9b59b6',
     description: 'Significantly below healthy weight range',
     range: { min: 0, max: 16 }
   },
@@ -48,7 +38,7 @@ const BMI_CATEGORIES: BMICategoryInfo[] = [
     category: 'Underweight',
     categoryId: 'underweight',
     healthRisk: 'Moderate',
-    color: '#3498db', // blue
+    color: '#3498db',
     description: 'Below healthy weight range',
     range: { min: 16, max: 18.5 }
   },
@@ -56,7 +46,7 @@ const BMI_CATEGORIES: BMICategoryInfo[] = [
     category: 'Normal',
     categoryId: 'normal',
     healthRisk: 'Low',
-    color: '#2ecc71', // green
+    color: '#2ecc71',
     description: 'Healthy weight range',
     range: { min: 18.5, max: 25 }
   },
@@ -64,7 +54,7 @@ const BMI_CATEGORIES: BMICategoryInfo[] = [
     category: 'Overweight',
     categoryId: 'overweight',
     healthRisk: 'Moderate',
-    color: '#f39c12', // orange
+    color: '#f39c12',
     description: 'Above healthy weight range',
     range: { min: 25, max: 30 }
   },
@@ -72,7 +62,7 @@ const BMI_CATEGORIES: BMICategoryInfo[] = [
     category: 'Obese Class I',
     categoryId: 'obese_1',
     healthRisk: 'High',
-    color: '#e67e22', // dark orange
+    color: '#e67e22',
     description: 'Obesity Class I',
     range: { min: 30, max: 35 }
   },
@@ -80,7 +70,7 @@ const BMI_CATEGORIES: BMICategoryInfo[] = [
     category: 'Obese Class II',
     categoryId: 'obese_2',
     healthRisk: 'Very High',
-    color: '#e74c3c', // red
+    color: '#e74c3c',
     description: 'Obesity Class II (Severe)',
     range: { min: 35, max: 40 }
   },
@@ -88,18 +78,12 @@ const BMI_CATEGORIES: BMICategoryInfo[] = [
     category: 'Obese Class III',
     categoryId: 'obese_3',
     healthRisk: 'Extremely High',
-    color: '#c0392b', // dark red
+    color: '#c0392b',
     description: 'Obesity Class III (Morbid)',
     range: { min: 40, max: 100 }
   }
 ];
 
-/**
- * Calculate BMI from weight and height
- * @param weightKg Weight in kilograms
- * @param heightCm Height in centimeters
- * @returns BMI value rounded to 1 decimal place
- */
 export function calculateBMI(weightKg: number, heightCm: number): number {
   if (weightKg <= 0 || heightCm <= 0) {
     throw new Error('Weight and height must be positive values');
@@ -111,11 +95,6 @@ export function calculateBMI(weightKg: number, heightCm: number): number {
   return Math.round(bmi * 10) / 10;
 }
 
-/**
- * Get BMI category information based on BMI value
- * @param bmi BMI value
- * @returns Category information
- */
 export function getBMICategory(bmi: number): BMICategoryInfo {
   for (const category of BMI_CATEGORIES) {
     if (bmi >= category.range.min && bmi < category.range.max) {
@@ -123,15 +102,9 @@ export function getBMICategory(bmi: number): BMICategoryInfo {
     }
   }
 
-  // Default to obese class III if above all ranges
   return BMI_CATEGORIES[BMI_CATEGORIES.length - 1];
 }
 
-/**
- * Calculate ideal weight range for a given height (BMI 18.5-25)
- * @param heightCm Height in centimeters
- * @returns Ideal weight range in kg
- */
 export function calculateIdealWeightRange(heightCm: number): IdealWeightRange {
   const heightM = heightCm / 100;
   const heightSquared = heightM * heightM;
@@ -146,12 +119,6 @@ export function calculateIdealWeightRange(heightCm: number): IdealWeightRange {
   };
 }
 
-/**
- * Calculate how much weight to lose or gain to reach ideal BMI
- * @param currentWeight Current weight in kg
- * @param heightCm Height in cm
- * @returns Weight to lose (negative) or gain (positive) in kg
- */
 export function calculateWeightToIdeal(currentWeight: number, heightCm: number): number {
   const bmi = calculateBMI(currentWeight, heightCm);
   const category = getBMICategory(bmi);
@@ -164,19 +131,14 @@ export function calculateWeightToIdeal(currentWeight: number, heightCm: number):
   const heightSquared = heightM * heightM;
 
   if (bmi < 18.5) {
-    // Underweight - need to gain to reach BMI 18.5
     const targetWeight = 18.5 * heightSquared;
     return Math.round((targetWeight - currentWeight) * 10) / 10;
   } else {
-    // Overweight/Obese - need to lose to reach BMI 25
     const targetWeight = 25 * heightSquared;
     return Math.round((targetWeight - currentWeight) * 10) / 10;
   }
 }
 
-/**
- * Get personalized recommendation based on BMI and goals
- */
 function getRecommendation(
   bmi: number,
   categoryId: string,
@@ -202,7 +164,6 @@ function getRecommendation(
 
   let recommendation = recommendations[categoryId] || recommendations.normal;
 
-  // Adjust based on fitness goal
   if (fitnessGoal === 'muscle_gain' && categoryId === 'normal') {
     recommendation =
       'Your BMI is healthy for muscle building. Focus on a slight caloric surplus (200-300 cal) with high protein intake for lean gains.';
@@ -214,14 +175,6 @@ function getRecommendation(
   return recommendation;
 }
 
-/**
- * Full BMI analysis with recommendations
- * @param weightKg Weight in kilograms
- * @param heightCm Height in centimeters
- * @param fitnessGoal Optional fitness goal for personalized recommendations
- * @param activityLevel Optional activity level
- * @returns Complete BMI analysis
- */
 export function analyzeBMI(
   weightKg: number,
   heightCm: number,
@@ -246,31 +199,20 @@ export function analyzeBMI(
   };
 }
 
-/**
- * Get all BMI categories (for UI display)
- */
 export function getAllBMICategories(): BMICategoryInfo[] {
   return BMI_CATEGORIES;
 }
 
-/**
- * Calculate BMI percentile (rough estimate based on general population)
- * This is a simplified estimation - actual percentiles vary by age, sex, and population
- */
 export function estimateBMIPercentile(bmi: number): number {
-  // Using a simplified normal distribution approximation
-  // Mean BMI ~26.5, Standard Deviation ~5.5 for US adults
   const mean = 26.5;
   const stdDev = 5.5;
   const zScore = (bmi - mean) / stdDev;
 
-  // Approximate CDF using standard normal distribution
   const percentile = 0.5 * (1 + erf(zScore / Math.sqrt(2)));
 
   return Math.round(percentile * 100);
 }
 
-// Error function approximation for normal CDF calculation
 function erf(x: number): number {
   const sign = x >= 0 ? 1 : -1;
   x = Math.abs(x);
@@ -288,9 +230,6 @@ function erf(x: number): number {
   return sign * y;
 }
 
-/**
- * Validate if user can have BMI calculated
- */
 export function canCalculateBMI(weight?: number | null, height?: number | null): boolean {
   return (
     weight !== undefined &&

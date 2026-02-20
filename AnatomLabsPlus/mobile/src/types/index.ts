@@ -19,6 +19,7 @@ export interface User {
   healthProfileComplete?: boolean;
   isAdmin?: boolean;
   isCoach?: boolean;
+  avatar?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -447,7 +448,7 @@ export interface CompletedWorkout extends ActiveWorkout {
   completedAt: string;
   duration: number; // minutes
   totalVolume: number; // total kg lifted (weight * reps)
-  totalSets: number;
+  totalSets: number; // total kg lifted (weight * reps)
   totalReps: number;
   musclesWorked: string[];
   personalRecords?: PersonalRecord[];
@@ -849,6 +850,15 @@ export interface CoachPost {
   imageUrl: string;
   likes: number;
   comments: number;
+  shares?: number;
+  isLiked?: boolean;
+  recentComments?: Array<{
+    id: string;
+    userId: string;
+    userName: string;
+    content: string;
+    timestamp: string;
+  }>;
   timestamp: string;
 }
 
@@ -871,8 +881,9 @@ export interface Coach {
   availability?: string[];
   stories?: CoachStory[];
   posts?: CoachPost[];
-  followers?: number;
-  following?: number;
+  followerCount?: number;
+  followingCount?: number;
+  isFollowing?: boolean;
 }
 
 export interface CoachApplication {
@@ -903,7 +914,7 @@ export interface Booking {
 
 export interface Conversation {
   id: string;
-  participants: { id: string; name: string }[];
+  participants: { id: string; name: string; avatar?: string }[];
   lastMessage?: {
     id: string;
     content: string;
@@ -919,7 +930,7 @@ export interface ChatMessage {
   conversationId: string;
   senderId: string;
   content: string;
-  sender?: { id: string; name: string };
+  sender?: { id: string; name: string; avatar?: string };
   createdAt: string;
 }
 

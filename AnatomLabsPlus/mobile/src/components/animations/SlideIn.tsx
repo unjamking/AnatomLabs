@@ -1,78 +1,40 @@
-import React, { useEffect } from 'react';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withDelay,
-  withSpring,
-} from 'react-native-reanimated';
+import React, { useCallback } from 'react';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, withSpring } from 'react-native-reanimated';
 import { ViewStyle } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { ANIMATION_DURATION, SPRING_CONFIG, EASING } from './config';
-
-type Direction = 'left' | 'right' | 'top' | 'bottom';
 
 interface SlideInProps {
   children: React.ReactNode;
-  direction?: Direction;
+  direction?: 'left' | 'right' | 'up' | 'down' | 'bottom';
   delay?: number;
   duration?: number;
   distance?: number;
-  style?: ViewStyle;
   useSpring?: boolean;
+  style?: ViewStyle;
 }
 
-export default function SlideIn({
-  children,
-  direction = 'bottom',
-  delay = 0,
-  duration = ANIMATION_DURATION.normal,
-  distance = 30,
-  style,
-  useSpring: useSpringAnim = false,
-}: SlideInProps) {
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
+export default function SlideIn({ children, direction = 'up', delay = 0, duration = ANIMATION_DURATION.normal, distance = 30, useSpring: _useSpring = true, style }: SlideInProps) {
   const opacity = useSharedValue(0);
+  const translateX = useSharedValue(direction === 'left' ? -distance : direction === 'right' ? distance : 0);
+  const translateY = useSharedValue(direction === 'up' || direction === 'bottom' ? distance : direction === 'down' ? -distance : 0);
 
-  useEffect(() => {
-    const initialX = direction === 'left' ? -distance : direction === 'right' ? distance : 0;
-    const initialY = direction === 'top' ? -distance : direction === 'bottom' ? distance : 0;
-
-    translateX.value = initialX;
-    translateY.value = initialY;
+  useFocusEffect(useCallback(() => {
     opacity.value = 0;
+    translateX.value = direction === 'left' ? -distance : direction === 'right' ? distance : 0;
+    translateY.value = direction === 'up' || direction === 'bottom' ? distance : direction === 'down' ? -distance : 0;
 
-    const animation = useSpringAnim
-      ? withSpring(0, SPRING_CONFIG.gentle)
-      : withTiming(0, { duration, easing: EASING.easeOut });
+    opacity.value = withDelay(delay, withTiming(1, { duration, easing: EASING.easeOut }));
+    translateX.value = withDelay(delay, withSpring(0, SPRING_CONFIG.gentle));
+    translateY.value = withDelay(delay, withSpring(0, SPRING_CONFIG.gentle));
 
-    translateX.value = withDelay(delay, animation);
-    translateY.value = withDelay(delay, useSpringAnim
-      ? withSpring(0, SPRING_CONFIG.gentle)
-      : withTiming(0, { duration, easing: EASING.easeOut }));
-    opacity.value = withDelay(
-      delay,
-      withTiming(1, { duration, easing: EASING.easeOut })
-    );
-
-    return () => {
-      opacity.value = 1;
-      translateX.value = 0;
-      translateY.value = 0;
-    };
-  }, [direction, delay, duration, distance, useSpringAnim]);
+    return () => { opacity.value = 1; translateX.value = 0; translateY.value = 0; };
+  }, [delay, direction]));
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: translateX.value },
-      { translateY: translateY.value },
-    ],
     opacity: opacity.value,
+    transform: [{ translateX: translateX.value }, { translateY: translateY.value }],
   }));
 
-  return (
-    <Animated.View style={[style, animatedStyle]}>
-      {children}
-    </Animated.View>
-  );
+  return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>;
 }

@@ -68,12 +68,19 @@ const getApiUrl = () => {
       const host = debuggerHost.split(':')[0];
       return `http://${host}:3001/api`;
     }
-    return 'http://172.20.10.3:3001/api';
+    return 'http://192.168.70.115:3001/api';
   }
   return PRODUCTION_API_URL;
 };
 
 const API_BASE_URL = getApiUrl();
+const SERVER_BASE_URL = API_BASE_URL.replace(/\/api$/, '');
+
+export const resolveUrl = (url: string | null | undefined): string | undefined => {
+  if (!url) return undefined;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `${SERVER_BASE_URL}${url}`;
+};
 
 // Callback for when auth fails - will be set by AuthContext
 let onAuthFailure: (() => void) | null = null;
@@ -242,12 +249,16 @@ class ApiService {
     try {
       const response = await this.api.get('/users/me');
       const user = response.data;
+      if (user?.avatar) user.avatar = resolveUrl(user.avatar);
       if (user) await AsyncStorage.setItem('user_data', JSON.stringify(user));
       return user;
     } catch (error) {
       try {
         const userData = await AsyncStorage.getItem('user_data');
-        return userData ? JSON.parse(userData) : null;
+        if (!userData) return null;
+        const user = JSON.parse(userData);
+        if (user?.avatar) user.avatar = resolveUrl(user.avatar);
+        return user;
       } catch {
         return null;
       }
@@ -1007,12 +1018,13 @@ class ApiService {
 
   async getCoaches(params?: { search?: string; specialty?: string }): Promise<Coach[]> {
     const response = await this.api.get<Coach[]>('/coaches', { params });
-    return response.data;
+    return response.data.map(c => ({ ...c, avatar: resolveUrl(c.avatar) }));
   }
 
   async getCoachProfile(id: string): Promise<Coach> {
     const response = await this.api.get<Coach>(`/coaches/${id}`);
-    return response.data;
+    const c = response.data;
+    return { ...c, avatar: resolveUrl(c.avatar) };
   }
 
   async followCoach(id: string): Promise<{ message: string }> {
@@ -1088,16 +1100,34 @@ class ApiService {
     return response.data;
   }
 
-  async uploadCoachAvatar(imageUri: string): Promise<{ avatarUrl: string }> {
+  async uploadAvatar(imageUri: string): Promise<{ avatarUrl: string }> {
     const formData = new FormData();
     const filename = imageUri.split('/').pop() || 'avatar.jpg';
     const match = /\.(\w+)$/.exec(filename);
     const type = match ? `image/${match[1]}` : 'image/jpeg';
     formData.append('avatar', { uri: imageUri, name: filename, type } as any);
-    const response = await this.api.post('/coach-dashboard/avatar', formData, {
+    const response = await this.api.post('/users/me/avatar', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    return response.data;
+    const { avatarUrl } = response.data;
+    return { avatarUrl: resolveUrl(avatarUrl) || avatarUrl };
+  }
+
+  async uploadCoachAvatar(imageUri: string): Promise<{ avatarUrl: string }> {
+    return this.uploadAvatar(imageUri);
+  }
+
+  async uploadPostImage(imageUri: string): Promise<{ imageUrl: string }> {
+    const formData = new FormData();
+    const filename = imageUri.split('/').pop() || 'post.jpg';
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : 'image/jpeg';
+    formData.append('image', { uri: imageUri, name: filename, type } as any);
+    const response = await this.api.post('/coach-dashboard/upload-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    const { imageUrl } = response.data;
+    return { imageUrl: resolveUrl(imageUrl) || imageUrl };
   }
 
   async createCoachPost(data: { caption: string; imageUrl?: string; type?: string }): Promise<any> {
@@ -1208,6 +1238,22 @@ class ApiService {
 
   async getCoachFollowers(): Promise<any[]> {
     const response = await this.api.get('/coach-dashboard/followers');
+    return response.data;
+  }
+
+  // Post interactions
+  async likePost(postId: string): Promise<{ message: string; liked: boolean }> {
+    const response = await this.api.post(`/coaches/posts/${postId}/like`);
+    return response.data;
+  }
+
+  async commentOnPost(postId: string, content: string): Promise<any> {
+    const response = await this.api.post(`/coaches/posts/${postId}/comment`, { content });
+    return response.data;
+  }
+
+  async sharePost(postId: string): Promise<{ message: string }> {
+    const response = await this.api.post(`/coaches/posts/${postId}/share`);
     return response.data;
   }
 }

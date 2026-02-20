@@ -52,7 +52,8 @@
         {
           "motionPermission": "Allow AnatomLabs+ to access motion data to track your steps."
         }
-      ]
+      ],
+      "react-native-health-connect"
     ]
   }
 }

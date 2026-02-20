@@ -9,6 +9,7 @@ import {
   Alert,
   Linking,
   Platform,
+  Image,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -19,13 +20,14 @@ import Animated, {
   interpolate,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import healthService from '../../services/healthService';
 import appleHealthService, { HealthData } from '../../services/appleHealthService';
+import androidHealthService from '../../services/androidHealthService';
 import {
   AnimatedCard,
-  AnimatedButton,
   AnimatedListItem,
   FadeIn,
   SlideIn,
@@ -38,6 +40,11 @@ import {
 } from '../../components/animations';
 import BMICard from '../../components/health/BMICard';
 import { BMIResult, ActivityLog } from '../../types';
+
+function initials(name: string) {
+  if (!name) return '??';
+  return name.split(' ').map(n => n[0]).join('').toUpperCase();
+}
 
 export default function HomeScreen({ navigation }: any) {
   const { user, logout } = useAuth();
@@ -81,45 +88,38 @@ export default function HomeScreen({ navigation }: any) {
     initializeAppleHealth();
   }, []);
 
-  // Initialize Apple HealthKit
+  const platformHealthService = Platform.OS === 'android' ? androidHealthService : appleHealthService;
+
   const initializeAppleHealth = async () => {
-    // Check if HealthKit is available (requires iOS + native build)
-    if (!appleHealthService.isAvailable()) {
+    if (!platformHealthService.isAvailable()) {
       setHealthKitStatus('unavailable');
       return;
     }
 
     try {
-      const status = await appleHealthService.initialize();
+      const status = await platformHealthService.initialize();
       if (status.isAuthorized) {
         setHealthKitStatus('available');
-        // Fetch health data immediately
         fetchAppleHealthData();
       } else {
         setHealthKitStatus('no_permission');
       }
     } catch (error) {
-      console.log('Apple HealthKit not available (requires native build)');
       setHealthKitStatus('unavailable');
     }
   };
 
-  // Fetch comprehensive health data from Apple Health
   const fetchAppleHealthData = async () => {
     try {
-      const data = await appleHealthService.getTodayHealthData();
+      const data = await platformHealthService.getTodayHealthData();
       if (data) {
         setAppleHealthData(data);
-        // Also update the steps input field
         if (data.steps > 0) {
-          setActivityInput(prev => ({
-            ...prev,
-            steps: String(data.steps),
-          }));
+          setActivityInput(prev => ({ ...prev, steps: String(data.steps) }));
         }
       }
     } catch (error) {
-      console.error('Error fetching Apple Health data:', error);
+      console.error('Error fetching health data:', error);
     }
   };
 
@@ -309,77 +309,33 @@ export default function HomeScreen({ navigation }: any) {
 
   const quickActions = [
     {
-      title: 'Find a Coach',
+      title: 'Coaches',
       subtitle: 'Browse expert trainers',
       icon: 'people-outline' as const,
       screen: 'Coaches',
       color: '#3498db',
     },
     {
-      title: 'Generate Workout',
-      subtitle: 'Science-based training plan',
-      icon: 'barbell-outline' as const,
-      screen: 'Workouts',
-      color: '#e74c3c',
-    },
-    {
-      title: 'View Nutrition Plan',
+      title: 'Nutrition',
       subtitle: 'BMR, TDEE & macro targets',
       icon: 'nutrition-outline' as const,
       screen: 'Nutrition',
       color: '#2ecc71',
     },
     {
-      title: 'Check Reports',
-      subtitle: 'Performance & injury prevention',
+      title: 'Workouts',
+      subtitle: 'Science-based training plan',
+      icon: 'barbell-outline' as const,
+      screen: 'Workouts',
+      color: '#e74c3c',
+    },
+    {
+      title: 'Reports',
+      subtitle: 'Performance & analytics',
       icon: 'analytics-outline' as const,
       screen: 'Reports',
       color: '#9b59b6',
     },
-    {
-      title: 'Health Profile',
-      subtitle: 'Medical conditions & dietary needs',
-      icon: 'medical-outline' as const,
-      screen: 'HealthProfile',
-      color: '#e67e22',
-    },
-    {
-      title: 'Messages',
-      subtitle: 'Chat with coaches',
-      icon: 'chatbubbles-outline' as const,
-      screen: 'Conversations',
-      color: '#1abc9c',
-    },
-    {
-      title: 'My Bookings',
-      subtitle: 'Upcoming sessions',
-      icon: 'calendar-outline' as const,
-      screen: 'Bookings',
-      color: '#8e44ad',
-    },
-    ...(user?.isCoach ? [
-      {
-        title: 'Coach Dashboard',
-        subtitle: 'Manage your coaching',
-        icon: 'speedometer-outline' as const,
-        screen: 'CoachDashboard',
-        color: '#d35400',
-      },
-      {
-        title: 'Post Story',
-        subtitle: 'Share a quick update',
-        icon: 'camera-outline' as const,
-        screen: 'CoachDashboard', // Or a specific PostStory screen if added later
-        color: '#e67e22',
-      },
-      {
-        title: 'Create Post',
-        subtitle: 'Add to your profile feed',
-        icon: 'add-circle-outline' as const,
-        screen: 'CoachDashboard',
-        color: '#f39c12',
-      }
-    ] : []),
   ];
 
   return (
@@ -389,20 +345,15 @@ export default function HomeScreen({ navigation }: any) {
         scrollY={scrollY}
         rightElement={
           <View style={styles.headerRight}>
-            <TouchableOpacity 
-              onPress={() => navigation.navigate('Notifications')} 
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Notifications')}
               style={styles.notificationBtn}
             >
               <Ionicons name="notifications-outline" size={24} color={COLORS.text} />
-              {/* Unread dot logic could be added here */}
             </TouchableOpacity>
-            <AnimatedButton
-              variant="ghost"
-              size="small"
-              onPress={handleLogout}
-              title="Logout"
-              textStyle={{ color: COLORS.primary }}
-            />
+            <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+              <Ionicons name="log-out-outline" size={22} color={COLORS.textSecondary} />
+            </TouchableOpacity>
           </View>
         }
       />
@@ -422,10 +373,30 @@ export default function HomeScreen({ navigation }: any) {
       >
         {/* Header */}
         <Animated.View style={[styles.header, headerStyle]}>
-          <SlideIn direction="left" delay={0}>
-            <Text style={styles.greeting}>Welcome back,</Text>
-            <Text style={styles.name}>{user?.name || 'User'}</Text>
-          </SlideIn>
+          <View style={styles.headerTopRow}>
+            <SlideIn direction="left" delay={0}>
+              <View>
+                <Text style={styles.greeting}>Welcome back,</Text>
+                <Text style={styles.name}>{user?.name || 'User'}</Text>
+              </View>
+            </SlideIn>
+            <SlideIn direction="right" delay={100}>
+              <TouchableOpacity 
+                style={styles.avatarBtn} 
+                onPress={() => navigation.navigate('HealthProfile')}
+              >
+                <View style={[styles.avatarRing, { borderColor: user?.isCoach ? COLORS.primary : '#3498db' }]}>
+                  {user?.avatar ? (
+                    <Image source={{ uri: user.avatar }} style={styles.avatarImg} />
+                  ) : (
+                    <ExpoLinearGradient colors={[user?.isCoach ? COLORS.primary : '#3498db', '#1a1a1a']} style={styles.avatarGrad}>
+                      <Text style={styles.avatarText}>{initials(user?.name || '')}</Text>
+                    </ExpoLinearGradient>
+                  )}
+                </View>
+              </TouchableOpacity>
+            </SlideIn>
+          </View>
         </Animated.View>
 
         {/* Stats Cards */}
@@ -559,8 +530,8 @@ export default function HomeScreen({ navigation }: any) {
                 <View style={styles.healthMetricsContainer}>
                   {appleHealthData && (
                     <View style={styles.healthKitBadge}>
-                      <Ionicons name="heart" size={12} color="#ff2d55" />
-                      <Text style={styles.healthKitBadgeText}>Apple Health</Text>
+                      <Ionicons name="heart" size={12} color={Platform.OS === 'android' ? '#4CAF50' : '#ff2d55'} />
+                      <Text style={styles.healthKitBadgeText}>{Platform.OS === 'android' ? 'Health Connect' : 'Apple Health'}</Text>
                     </View>
                   )}
                   <View style={styles.healthMetricsRow}>
@@ -605,11 +576,11 @@ export default function HomeScreen({ navigation }: any) {
               )}
 
               {/* HealthKit Permission Request */}
-              {Platform.OS === 'ios' && healthKitStatus === 'no_permission' && !appleHealthData && (
+              {healthKitStatus === 'no_permission' && !appleHealthData && (
                 <TouchableOpacity style={styles.healthKitPrompt} onPress={initializeAppleHealth}>
-                  <Ionicons name="heart-circle-outline" size={20} color="#ff2d55" />
+                  <Ionicons name="heart-circle-outline" size={20} color={Platform.OS === 'android' ? '#4CAF50' : '#ff2d55'} />
                   <Text style={styles.healthKitPromptText}>
-                    Tap to enable Apple Health for accurate calorie tracking
+                    Tap to enable {Platform.OS === 'android' ? 'Health Connect' : 'Apple Health'} for accurate calorie tracking
                   </Text>
                   <Ionicons name="chevron-forward" size={16} color={COLORS.textSecondary} />
                 </TouchableOpacity>
@@ -702,6 +673,7 @@ export default function HomeScreen({ navigation }: any) {
                 }}
                 style={styles.actionButton}
                 variant="elevated"
+                animateEntry={false}
               >
                 <View style={styles.actionContent}>
                   <View style={[styles.iconContainer, { backgroundColor: `${action.color}20` }]}>
@@ -738,13 +710,16 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   greeting: {
-    fontSize: 16,
+    fontSize: 14,
     color: COLORS.textSecondary,
+    fontWeight: '500',
+    marginBottom: 2,
   },
   name: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '800',
     color: COLORS.text,
+    letterSpacing: -0.3,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -940,15 +915,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 30,
+    fontWeight: '800',
     color: COLORS.primary,
-    marginBottom: 4,
+    marginBottom: 2,
+    letterSpacing: -0.5,
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '700',
     color: COLORS.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   statSubtext: {
     fontSize: 11,
@@ -958,10 +935,11 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '800',
     color: COLORS.text,
-    marginBottom: 16,
+    marginBottom: 14,
+    letterSpacing: -0.2,
   },
   infoGrid: {
     flexDirection: 'row',
@@ -997,9 +975,9 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -1008,14 +986,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   actionButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: COLORS.text,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   actionButtonSubtext: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.textSecondary,
+    lineHeight: 16,
   },
   headerRight: {
     flexDirection: 'row',
@@ -1026,8 +1005,49 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.05)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  logoutBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  avatarBtn: {
+    width: 52,
+    height: 52,
+  },
+  avatarRing: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 2,
+    padding: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarImg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  avatarGrad: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

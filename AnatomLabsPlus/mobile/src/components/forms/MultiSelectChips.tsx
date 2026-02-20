@@ -22,7 +22,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
-// Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -79,12 +78,10 @@ export default function MultiSelectChips({
     const isSelected = selectedIds.includes(id);
 
     if (isSelected) {
-      // Remove from selection
       onSelectionChange(selectedIds.filter(selectedId => selectedId !== id));
     } else {
-      // Add to selection (check max limit)
       if (maxSelections && selectedIds.length >= maxSelections) {
-        return; // Don't add if at max
+        return;
       }
       onSelectionChange([...selectedIds, id]);
     }
@@ -145,7 +142,6 @@ export default function MultiSelectChips({
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <TouchableOpacity
         style={styles.header}
         onPress={collapsible ? toggleExpand : undefined}
@@ -176,7 +172,6 @@ export default function MultiSelectChips({
         )}
       </TouchableOpacity>
 
-      {/* Selected Preview (when collapsed) */}
       {!isExpanded && hasSelections && (
         <View style={styles.selectedPreview}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -204,7 +199,6 @@ export default function MultiSelectChips({
         </View>
       )}
 
-      {/* Options Grid (when expanded) */}
       {(isExpanded || !collapsible) && (
         <Animated.View
           entering={FadeIn.duration(200)}
@@ -223,7 +217,6 @@ interface CollapsibleSectionProps {
   children: React.ReactNode;
   initiallyExpanded?: boolean;
   badge?: string;
-  // For controlled accordion behavior
   isExpanded?: boolean;
   onToggle?: () => void;
   accentColor?: string;
@@ -240,10 +233,8 @@ export function CollapsibleSection({
 }: CollapsibleSectionProps) {
   const [internalExpanded, setInternalExpanded] = useState(initiallyExpanded);
 
-  // Use controlled state if provided, otherwise use internal state
   const isExpanded = controlledIsExpanded !== undefined ? controlledIsExpanded : internalExpanded;
 
-  // Animation values
   const rotation = useSharedValue(isExpanded ? 1 : 0);
   const contentHeight = useSharedValue(isExpanded ? 1 : 0);
   const borderWidth = useSharedValue(isExpanded ? 3 : 0);
@@ -397,7 +388,6 @@ const styles = StyleSheet.create({
   chipIcon: {
     marginLeft: 6,
   },
-  // CollapsibleSection styles
   sectionContainer: {
     backgroundColor: COLORS.surface,
     borderRadius: 12,

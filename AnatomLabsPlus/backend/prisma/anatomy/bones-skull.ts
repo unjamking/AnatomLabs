@@ -1,7 +1,4 @@
-// SKULL BONES (22 bones: 8 cranial + 14 facial)
-
 export const SKULL_BONES = [
-  // ==================== CRANIAL BONES (8) ====================
   {
     name: 'Frontal Bone',
     type: 'bone',
@@ -90,8 +87,6 @@ export const SKULL_BONES = [
     position3D: { x: 0, y: 1.64, z: 0.06 },
     exercises: []
   },
-
-  // ==================== FACIAL BONES (14) ====================
   {
     name: 'Maxilla (Left)',
     type: 'bone',

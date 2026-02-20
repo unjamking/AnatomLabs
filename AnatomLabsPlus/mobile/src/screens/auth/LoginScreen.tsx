@@ -82,35 +82,33 @@ export default function LoginScreen({ navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <LinearGradient
-        colors={['#0a0a0a', '#1a1a1a', '#0a0a0a']}
+        colors={['#0a0a0a', '#111', '#0a0a0a']}
         style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
       />
 
       <View style={styles.content}>
         <Animated.View style={[styles.header, logoStyle]}>
-          <View style={styles.logoContainer}>
-            <LinearGradient
-              colors={['#e74c3c', '#c0392b']}
-              style={styles.logoGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Ionicons name="fitness" size={48} color="#fff" />
-            </LinearGradient>
-          </View>
-          <Text style={styles.title}>AnatomLabs+</Text>
+          <LinearGradient
+            colors={['#e74c3c', '#c0392b']}
+            style={styles.logoGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Ionicons name="fitness" size={44} color="#fff" />
+          </LinearGradient>
+          <Text style={styles.title}>AnatomLabs<Text style={styles.titlePlus}>+</Text></Text>
           <Text style={styles.subtitle}>Human Performance Science</Text>
         </Animated.View>
 
         <View style={styles.form}>
-          <SlideIn direction="left" delay={200}>
+          <SlideIn direction="bottom" delay={200}>
             <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
+              <Ionicons name="mail-outline" size={18} color={COLORS.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Email"
+                placeholder="Email address"
                 placeholderTextColor={COLORS.textTertiary}
                 value={email}
                 onChangeText={setEmail}
@@ -121,9 +119,9 @@ export default function LoginScreen({ navigation }: Props) {
             </View>
           </SlideIn>
 
-          <SlideIn direction="left" delay={300}>
+          <SlideIn direction="bottom" delay={300}>
             <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
+              <Ionicons name="lock-closed-outline" size={18} color={COLORS.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Password"
@@ -138,7 +136,7 @@ export default function LoginScreen({ navigation }: Props) {
 
           <SlideIn direction="bottom" delay={400}>
             <AnimatedButton
-              title={isLoading ? undefined : "Login"}
+              title={isLoading ? undefined : "Sign In"}
               variant="primary"
               size="large"
               onPress={handleLogin}
@@ -149,8 +147,15 @@ export default function LoginScreen({ navigation }: Props) {
               {isLoading && <ActivityIndicator color="#fff" />}
             </AnimatedButton>
           </SlideIn>
-
         </View>
+
+        <FadeIn delay={500}>
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+        </FadeIn>
 
         <FadeIn delay={600}>
           <AnimatedButton
@@ -163,18 +168,9 @@ export default function LoginScreen({ navigation }: Props) {
             style={styles.registerLink}
           >
             <Text style={styles.registerLinkText}>
-              Don't have an account? <Text style={styles.registerLinkBold}>Sign Up</Text>
+              Don't have an account? <Text style={styles.registerLinkBold}>Create one</Text>
             </Text>
           </AnimatedButton>
-        </FadeIn>
-
-        <FadeIn delay={700}>
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Educational Platform</Text>
-            <Text style={styles.footerSubtext}>
-              Science & Technology Competition Project
-            </Text>
-          </View>
         </FadeIn>
       </View>
     </KeyboardAvoidingView>
@@ -189,40 +185,43 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 30,
+    paddingHorizontal: 28,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 50,
-  },
-  logoContainer: {
-    marginBottom: 20,
+    marginBottom: 48,
   },
   logoGradient: {
-    width: 90,
-    height: 90,
-    borderRadius: 24,
+    width: 80,
+    height: 80,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 20,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
     elevation: 10,
   },
   title: {
-    fontSize: 42,
-    fontWeight: 'bold',
+    fontSize: 36,
+    fontWeight: '800',
+    color: COLORS.text,
+    letterSpacing: -0.5,
+    marginBottom: 6,
+  },
+  titlePlus: {
     color: COLORS.primary,
-    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#aaa',
-    textAlign: 'center',
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    letterSpacing: 0.3,
   },
   form: {
-    marginBottom: 40,
+    gap: 12,
+    marginBottom: 24,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -230,45 +229,45 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cardBackground,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 12,
-    marginBottom: 16,
+    borderRadius: 14,
     paddingHorizontal: 16,
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: 10,
   },
   input: {
     flex: 1,
     paddingVertical: 16,
-    fontSize: 16,
+    fontSize: 15,
     color: COLORS.text,
   },
   loginButton: {
-    marginTop: 10,
+    marginTop: 4,
   },
-  footer: {
+  divider: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
   },
-  footerText: {
+  dividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.border,
+  },
+  dividerText: {
     color: COLORS.textTertiary,
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  footerSubtext: {
-    color: '#444',
-    fontSize: 12,
+    fontSize: 13,
   },
   registerLink: {
-    marginTop: 20,
-    marginBottom: 30,
     alignItems: 'center',
   },
   registerLinkText: {
     color: COLORS.textSecondary,
-    fontSize: 14,
+    fontSize: 15,
   },
   registerLinkBold: {
     color: COLORS.primary,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

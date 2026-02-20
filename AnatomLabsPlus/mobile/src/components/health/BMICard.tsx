@@ -49,7 +49,6 @@ export default function BMICard({
 }: BMICardProps) {
   const categoryColor = color || CATEGORY_COLORS[categoryId] || COLORS.primary;
 
-  // Calculate position on the scale (0-100%)
   const getScalePosition = (value: number): number => {
     const clamped = Math.max(BMI_SCALE.min, Math.min(BMI_SCALE.max, value));
     return ((clamped - BMI_SCALE.min) / (BMI_SCALE.max - BMI_SCALE.min)) * 100;
@@ -60,7 +59,6 @@ export default function BMICard({
   const normalEndPosition = getScalePosition(BMI_SCALE.normalMax);
   const normalWidth = normalEndPosition - normalStartPosition;
 
-  // Get weight change message
   const getWeightMessage = (): string => {
     if (!weightToIdeal || weightToIdeal === 0) {
       return 'You are at a healthy weight!';
@@ -71,7 +69,6 @@ export default function BMICard({
     return `Lose ${Math.abs(weightToIdeal).toFixed(1)} kg to reach healthy BMI`;
   };
 
-  // Get health risk badge color
   const getRiskColor = (): string => {
     switch (healthRisk.toLowerCase()) {
       case 'low':
@@ -90,7 +87,6 @@ export default function BMICard({
 
   return (
     <GlassCard delay={delay} style={styles.container} borderGlow glowColor={categoryColor}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Body Mass Index</Text>
         <View style={[styles.riskBadge, { backgroundColor: getRiskColor() + '20' }]}>
@@ -100,7 +96,6 @@ export default function BMICard({
         </View>
       </View>
 
-      {/* BMI Value */}
       <View style={styles.valueContainer}>
         <Text style={[styles.bmiValue, { color: categoryColor }]}>
           {bmi.toFixed(1)}
@@ -112,10 +107,8 @@ export default function BMICard({
         </View>
       </View>
 
-      {/* BMI Scale */}
       <View style={styles.scaleContainer}>
         <View style={styles.scale}>
-          {/* Background gradient sections */}
           <View style={[styles.scaleSection, styles.scaleUnderweight]} />
           <View
             style={[
@@ -132,14 +125,12 @@ export default function BMICard({
             ]}
           />
 
-          {/* Indicator */}
           <View style={[styles.indicator, { left: `${indicatorPosition}%` }]}>
             <View style={[styles.indicatorDot, { backgroundColor: categoryColor }]} />
             <View style={[styles.indicatorLine, { backgroundColor: categoryColor }]} />
           </View>
         </View>
 
-        {/* Scale Labels */}
         <View style={styles.scaleLabels}>
           <Text style={styles.scaleLabel}>15</Text>
           <Text style={[styles.scaleLabel, styles.scaleLabelNormal]}>18.5</Text>
@@ -148,7 +139,6 @@ export default function BMICard({
         </View>
       </View>
 
-      {/* Ideal Weight Range */}
       {idealWeightRange && (
         <View style={styles.idealContainer}>
           <Text style={styles.idealLabel}>Healthy Weight Range</Text>
@@ -158,7 +148,6 @@ export default function BMICard({
         </View>
       )}
 
-      {/* Weight to Ideal */}
       {weightToIdeal !== undefined && (
         <View style={styles.messageContainer}>
           <Text
@@ -237,7 +226,7 @@ const styles = StyleSheet.create({
   },
   scaleUnderweight: {
     left: 0,
-    width: '14%', // (18.5-15)/(40-15) = 14%
+    width: '14%',
     backgroundColor: '#3498db40',
   },
   scaleNormal: {

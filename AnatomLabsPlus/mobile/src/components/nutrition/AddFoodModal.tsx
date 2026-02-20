@@ -41,7 +41,6 @@ export default function AddFoodModal({ visible, mealType, onClose, onAddFood }: 
     if (visible) {
       loadFoods();
     } else {
-      // Reset state when modal closes
       setSearch('');
       setSelectedFood(null);
       setServings('1');

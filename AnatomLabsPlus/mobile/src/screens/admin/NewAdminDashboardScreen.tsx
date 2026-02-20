@@ -1254,7 +1254,8 @@ export default function NewAdminDashboardScreen() {
         <LinearGradient colors={['rgba(8,8,8,0)', 'rgba(8,8,8,0.97)']} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, height: 120 }} />
         <View style={s.navBarBorder} />
         <View style={s.navBar}>
-          {SEGMENTS.map(seg => {
+          {SEGMENTS.map(seg =>  
+          {
             const isActive = segment === seg.key;
             return (
               <TouchableOpacity key={seg.key} style={s.navTab} onPress={() => handleSegmentChange(seg.key)} activeOpacity={0.7}>

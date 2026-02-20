@@ -29,11 +29,26 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
       select: { name: true }
     });
 
+    const bookingDate = new Date(date);
+
+    const conflict = await prisma.booking.findFirst({
+      where: {
+        coachId: coachProfile.userId,
+        date: bookingDate,
+        timeSlot,
+        status: { in: ['PENDING', 'CONFIRMED'] },
+      },
+    });
+
+    if (conflict) {
+      return res.status(409).json({ error: 'This time slot is already booked. Please choose another.' });
+    }
+
     const booking = await prisma.booking.create({
       data: {
         clientId,
         coachId: coachProfile.userId,
-        date: new Date(date),
+        date: bookingDate,
         timeSlot,
         goal: goal || null,
         price: price || coachProfile.price,

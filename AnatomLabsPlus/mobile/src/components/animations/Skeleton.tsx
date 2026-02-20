@@ -73,7 +73,6 @@ export default function Skeleton({
   );
 }
 
-// Preset skeleton shapes
 export function SkeletonText({ width = '100%', lines = 1 }: { width?: number | string; lines?: number }) {
   return (
     <>

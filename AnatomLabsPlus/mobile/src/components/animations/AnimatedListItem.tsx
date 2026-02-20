@@ -1,66 +1,25 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+import Animated, { FadeInDown, FadeInLeft, FadeInRight, FadeIn } from 'react-native-reanimated';
 import { ViewStyle } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withDelay,
-  withTiming,
-  withSpring,
-} from 'react-native-reanimated';
-import { ANIMATION_DURATION, SPRING_CONFIG, EASING, STAGGER_DELAY } from './config';
+import { STAGGER_DELAY, ANIMATION_DURATION } from './config';
 
 interface AnimatedListItemProps {
   children: React.ReactNode;
-  index: number;
+  index?: number;
   style?: ViewStyle;
-  enterFrom?: 'left' | 'right' | 'bottom' | 'fade';
+  enterFrom?: 'bottom' | 'left' | 'right' | 'fade';
 }
 
-export default function AnimatedListItem({
-  children,
-  index,
-  style,
-  enterFrom = 'bottom',
-}: AnimatedListItemProps) {
-  const opacity = useSharedValue(0);
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
-
-  useEffect(() => {
-    const initialX = enterFrom === 'left' ? -30 : enterFrom === 'right' ? 30 : 0;
-    const initialY = enterFrom === 'bottom' ? 20 : 0;
-
-    opacity.value = 0;
-    translateX.value = initialX;
-    translateY.value = initialY;
-
-    const delay = index * STAGGER_DELAY;
-
-    opacity.value = withDelay(
-      delay,
-      withTiming(1, { duration: ANIMATION_DURATION.normal, easing: EASING.easeOut })
-    );
-
-    if (enterFrom !== 'fade') {
-      translateX.value = withDelay(delay, withSpring(0, SPRING_CONFIG.gentle));
-      translateY.value = withDelay(delay, withSpring(0, SPRING_CONFIG.gentle));
-    }
-
-    return () => {
-      opacity.value = 1;
-    };
-  }, [index, enterFrom]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [
-      { translateX: translateX.value },
-      { translateY: translateY.value },
-    ],
-  }));
+export default function AnimatedListItem({ children, index = 0, style, enterFrom = 'bottom' }: AnimatedListItemProps) {
+  const delay = index * STAGGER_DELAY;
+  const entering =
+    enterFrom === 'left' ? FadeInLeft.delay(delay).duration(ANIMATION_DURATION.normal) :
+    enterFrom === 'right' ? FadeInRight.delay(delay).duration(ANIMATION_DURATION.normal) :
+    enterFrom === 'fade' ? FadeIn.delay(delay).duration(ANIMATION_DURATION.normal) :
+    FadeInDown.delay(delay).duration(ANIMATION_DURATION.normal);
 
   return (
-    <Animated.View style={[style, animatedStyle]}>
+    <Animated.View entering={entering} style={style}>
       {children}
     </Animated.View>
   );

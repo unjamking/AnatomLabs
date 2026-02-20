@@ -3,7 +3,6 @@ import prisma from '../lib/prisma';
 
 const router = Router();
 
-// GET /api/exercises
 router.get('/', async (req: Request, res: Response) => {
   try {
     const { category, difficulty, equipment, bodyPart, search } = req.query;
@@ -68,7 +67,6 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/exercises/for-muscle/:muscleId - Get exercises for a specific body part
 router.get('/for-muscle/:muscleId', async (req: Request, res: Response) => {
   try {
     const { muscleId } = req.params;
@@ -94,7 +92,6 @@ router.get('/for-muscle/:muscleId', async (req: Request, res: Response) => {
       }
     });
 
-    // Transform to flat exercise array with activation data
     const exercises = exerciseBodyParts.map((eb) => ({
       ...eb.exercise,
       activationRating: eb.activationRank ? (100 - (eb.activationRank * 10)) : null,
@@ -108,7 +105,6 @@ router.get('/for-muscle/:muscleId', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/exercises/:id
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;

@@ -133,9 +133,14 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      <BlurHeader 
-        title="Notifications" 
-        scrollY={scrollY} 
+      <BlurHeader
+        title="Notifications"
+        scrollY={scrollY}
+        leftElement={
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Ionicons name="chevron-back" size={26} color={COLORS.text} />
+          </TouchableOpacity>
+        }
         rightElement={
           <TouchableOpacity onPress={handleReadAll} style={styles.readAllBtn}>
             <Text style={styles.readAllText}>Mark all read</Text>
@@ -206,6 +211,7 @@ const styles = StyleSheet.create({
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 100, gap: 12 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text },
   emptySubtitle: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', paddingHorizontal: 40 },
+  backBtn: { width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
   readAllBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)' },
   readAllText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
 });

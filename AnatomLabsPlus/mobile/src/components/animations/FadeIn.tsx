@@ -1,12 +1,8 @@
-import React, { useEffect } from 'react';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withDelay,
-} from 'react-native-reanimated';
+import React, { useCallback, useReducer } from 'react';
+import Animated, { FadeIn as RNFadeIn } from 'react-native-reanimated';
 import { ViewStyle } from 'react-native';
-import { ANIMATION_DURATION, EASING } from './config';
+import { useFocusEffect } from '@react-navigation/native';
+import { ANIMATION_DURATION } from './config';
 
 interface FadeInProps {
   children: React.ReactNode;
@@ -17,37 +13,15 @@ interface FadeInProps {
   to?: number;
 }
 
-export default function FadeIn({
-  children,
-  delay = 0,
-  duration = ANIMATION_DURATION.normal,
-  style,
-  from = 0,
-  to = 1,
-}: FadeInProps) {
-  const opacity = useSharedValue(from);
+export default function FadeIn({ children, delay = 0, duration = ANIMATION_DURATION.normal, style }: FadeInProps) {
+  const [key, bump] = useReducer(n => n + 1, 0);
 
-  useEffect(() => {
-    opacity.value = from;
-    opacity.value = withDelay(
-      delay,
-      withTiming(to, {
-        duration,
-        easing: EASING.easeOut,
-      })
-    );
-
-    return () => {
-      opacity.value = to;
-    };
-  }, [delay, duration, from, to]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
+  useFocusEffect(useCallback(() => {
+    bump();
+  }, []));
 
   return (
-    <Animated.View style={[style, animatedStyle]}>
+    <Animated.View key={key} entering={RNFadeIn.delay(delay).duration(duration)} style={style}>
       {children}
     </Animated.View>
   );

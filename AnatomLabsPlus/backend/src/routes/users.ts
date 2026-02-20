@@ -2,6 +2,27 @@ import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { analyzeBMI, canCalculateBMI } from '../services/bmiCalculator';
+import { containsInappropriateContent, getContentError } from '../services/contentFilter';
+import { isImageSafe } from '../services/imageModeration';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+
+const avatarStorage = multer.diskStorage({
+  destination: 'uploads/avatars',
+  filename: (_req, file, cb) => {
+    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`);
+  },
+});
+
+const uploadAvatar = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only image files are allowed'));
+  },
+});
 
 const router = Router();
 
@@ -13,6 +34,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
         id: true,
         email: true,
         name: true,
+        avatar: true,
         age: true,
         gender: true,
         weight: true,
@@ -45,6 +67,7 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
         id: true,
         email: true,
         name: true,
+        avatar: true,
         age: true,
         gender: true,
         weight: true,
@@ -77,105 +100,42 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
   }
 });
 
-// GET /api/users/:id - Get user by id
-router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
+// POST /api/users/me/avatar - Upload avatar for current user
+router.post('/me/avatar', authenticateToken, uploadAvatar.single('avatar') as any, async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const file = (req as any).file;
+    if (!file) return res.status(400).json({ error: 'No image uploaded' });
 
-    // Users can only access their own data unless admin (for now, allow any authenticated user)
-    const user = await prisma.user.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        age: true,
-        gender: true,
-        weight: true,
-        height: true,
-        activityLevel: true,
-        goal: true,
-        createdAt: true,
+    const { safe, reason } = await isImageSafe(file.path);
+    if (!safe) {
+      fs.unlinkSync(file.path);
+      return res.status(400).json({ error: reason });
+    }
+
+    const avatarUrl = `/uploads/avatars/${file.filename}`;
+    const userId = req.userId!;
+
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { isCoach: true } });
+    
+    await prisma.$transaction(async (tx) => {
+      // Always update user avatar
+      await tx.user.update({
+        where: { id: userId },
+        data: { avatar: avatarUrl },
+      });
+
+      // If user is a coach, update coach profile avatar too
+      if (user?.isCoach) {
+        await tx.coachProfile.update({
+          where: { userId },
+          data: { avatar: avatarUrl },
+        });
       }
     });
 
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.status(200).json(user);
+    res.json({ avatarUrl });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// PUT /api/users/:id - Update user profile
-router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { name, age, gender, weight, height, activityLevel, goal } = req.body;
-
-    // Check if user exists
-    const existingUser = await prisma.user.findUnique({
-      where: { id }
-    });
-
-    if (!existingUser) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Calculate BMI if weight and height are provided
-    let bmiData: { bmi?: number; bmiCategory?: string } = {};
-    const newWeight = weight !== undefined ? weight : existingUser.weight;
-    const newHeight = height !== undefined ? height : existingUser.height;
-
-    if (canCalculateBMI(newWeight, newHeight)) {
-      const bmiResult = analyzeBMI(newWeight!, newHeight!, goal || existingUser.goal || undefined);
-      bmiData = {
-        bmi: bmiResult.bmi,
-        bmiCategory: bmiResult.categoryId
-      };
-    }
-
-    // Update user
-    const updatedUser = await prisma.user.update({
-      where: { id },
-      data: {
-        ...(name && { name }),
-        ...(age !== undefined && { age }),
-        ...(gender && { gender }),
-        ...(weight !== undefined && { weight }),
-        ...(height !== undefined && { height }),
-        ...(activityLevel && { activityLevel }),
-        ...(goal && { goal }),
-        ...bmiData
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        age: true,
-        gender: true,
-        weight: true,
-        height: true,
-        activityLevel: true,
-        goal: true,
-        bmi: true,
-        bmiCategory: true,
-        healthConditions: true,
-        physicalLimitations: true,
-        foodAllergies: true,
-        dietaryPreferences: true,
-        healthProfileComplete: true,
-        createdAt: true,
-      }
-    });
-
-    res.status(200).json({
-      message: 'User updated successfully',
-      user: updatedUser
-    });
-  } catch (error) {
+    console.error('Error uploading avatar:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -366,6 +326,124 @@ router.get('/me/following', authenticateToken, async (req: AuthRequest, res: Res
     res.json(coaches);
   } catch (error) {
     console.error('Error fetching following:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/users/:id - Get user by id
+router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatar: true,
+        age: true,
+        gender: true,
+        weight: true,
+        height: true,
+        activityLevel: true,
+        goal: true,
+        createdAt: true,
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/users/:id - Update user profile
+router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, age, gender, weight, height, activityLevel, goal, avatar } = req.body;
+
+    if (name !== undefined && containsInappropriateContent(name)) {
+      return res.status(400).json({ error: getContentError('Name') });
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { id }
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    let bmiData: { bmi?: number; bmiCategory?: string } = {};
+    const newWeight = weight !== undefined ? weight : existingUser.weight;
+    const newHeight = height !== undefined ? height : existingUser.height;
+
+    if (canCalculateBMI(newWeight, newHeight)) {
+      const bmiResult = analyzeBMI(newWeight!, newHeight!, goal || existingUser.goal || undefined);
+      bmiData = {
+        bmi: bmiResult.bmi,
+        bmiCategory: bmiResult.categoryId
+      };
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id },
+        data: {
+          ...(name && { name }),
+          ...(age !== undefined && { age }),
+          ...(gender && { gender }),
+          ...(weight !== undefined && { weight }),
+          ...(height !== undefined && { height }),
+          ...(activityLevel && { activityLevel }),
+          ...(goal && { goal }),
+          ...(avatar !== undefined && { avatar }),
+          ...bmiData
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          avatar: true,
+          age: true,
+          gender: true,
+          weight: true,
+          height: true,
+          activityLevel: true,
+          goal: true,
+          bmi: true,
+          bmiCategory: true,
+          healthConditions: true,
+          physicalLimitations: true,
+          foodAllergies: true,
+          dietaryPreferences: true,
+          healthProfileComplete: true,
+          isCoach: true,
+          createdAt: true,
+        }
+      });
+
+      if (avatar !== undefined && updated.isCoach) {
+        await tx.coachProfile.update({
+          where: { userId: id },
+          data: { avatar }
+        });
+      }
+
+      return updated;
+    });
+
+    res.status(200).json({
+      message: 'User updated successfully',
+      user: result
+    });
+  } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 });

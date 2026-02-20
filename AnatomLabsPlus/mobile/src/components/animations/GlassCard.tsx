@@ -1,15 +1,8 @@
 import React, { useCallback } from 'react';
-import { StyleSheet, View, ViewStyle, StyleProp } from 'react-native';
+import { StyleSheet, View, ViewStyle, StyleProp, TouchableOpacity } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withDelay,
-  withTiming,
-} from 'react-native-reanimated';
-import { TouchableOpacity } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withDelay } from 'react-native-reanimated';
 import { useFocusEffect } from '@react-navigation/native';
 import { useHaptics } from './useHaptics';
 import { SPRING_CONFIG, ANIMATION_DURATION, EASING } from './config';
@@ -26,124 +19,51 @@ interface GlassCardProps {
   glowColor?: string;
 }
 
-export default function GlassCard({
-  children,
-  delay = 0,
-  onPress,
-  style,
-  contentStyle,
-  blurIntensity = 40,
-  gradientColors = ['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.02)'] as const,
-  borderGlow = false,
-  glowColor = '#e74c3c',
-}: GlassCardProps) {
+export default function GlassCard({ children, delay = 0, onPress, style, contentStyle, blurIntensity = 40, gradientColors = ['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.02)'] as const, borderGlow = false, glowColor = '#e74c3c' }: GlassCardProps) {
   const scale = useSharedValue(1);
-  const opacity = useSharedValue(1); // Start visible
-  const translateY = useSharedValue(0);
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(20);
   const { trigger } = useHaptics();
 
-  useFocusEffect(
-    useCallback(() => {
-      // Reset and animate
-      opacity.value = 0;
-      translateY.value = 20;
+  useFocusEffect(useCallback(() => {
+    opacity.value = 0;
+    translateY.value = 20;
+    opacity.value = withDelay(delay, withTiming(1, { duration: ANIMATION_DURATION.normal, easing: EASING.easeOut }));
+    translateY.value = withDelay(delay, withSpring(0, SPRING_CONFIG.gentle));
+    return () => { opacity.value = 1; translateY.value = 0; };
+  }, [delay]));
 
-      opacity.value = withDelay(
-        delay,
-        withTiming(1, { duration: ANIMATION_DURATION.normal, easing: EASING.easeOut })
-      );
-      translateY.value = withDelay(
-        delay,
-        withSpring(0, SPRING_CONFIG.gentle)
-      );
-
-      return () => {
-        opacity.value = 1;
-        translateY.value = 0;
-      };
-    }, [delay])
-  );
-
-  const handlePressIn = () => {
-    if (onPress) {
-      scale.value = withSpring(0.98, SPRING_CONFIG.snappy);
-    }
-  };
-
-  const handlePressOut = () => {
-    if (onPress) {
-      scale.value = withSpring(1, SPRING_CONFIG.bouncy);
-    }
-  };
-
-  const handlePress = () => {
-    if (onPress) {
-      trigger('light');
-      onPress();
-    }
-  };
+  const handlePressIn = () => { if (onPress) scale.value = withSpring(0.98, SPRING_CONFIG.snappy); };
+  const handlePressOut = () => { if (onPress) scale.value = withSpring(1, SPRING_CONFIG.bouncy); };
+  const handlePress = () => { if (onPress) { trigger('light'); onPress(); } };
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: scale.value },
-      { translateY: translateY.value },
-    ],
+    transform: [{ scale: scale.value }, { translateY: translateY.value }],
     opacity: opacity.value,
   }));
 
-  const content = (
+  const inner = (
     <Animated.View style={[styles.container, animatedStyle, style]}>
       <BlurView intensity={blurIntensity} tint="dark" style={StyleSheet.absoluteFill} />
-      <LinearGradient
-        colors={gradientColors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <View
-        style={[
-          styles.border,
-          borderGlow && {
-            borderColor: glowColor,
-            shadowColor: glowColor,
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-          },
-        ]}
-      />
+      <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
+      <View style={[styles.border, borderGlow && { borderColor: glowColor, shadowColor: glowColor, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 8 }]} />
       <View style={[styles.content, contentStyle]}>{children}</View>
     </Animated.View>
   );
 
   if (onPress) {
     return (
-      <TouchableOpacity
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        onPress={handlePress}
-        activeOpacity={1}
-      >
-        {content}
+      <TouchableOpacity onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={handlePress} activeOpacity={1}>
+        {inner}
       </TouchableOpacity>
     );
   }
 
-  return content;
+  return inner;
 }
 
 const styles = StyleSheet.create({
-  container: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  border: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  content: {
-    padding: 16,
-  },
+  container: { borderRadius: 16, overflow: 'hidden' },
+  border: { ...StyleSheet.absoluteFillObject, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  content: { padding: 16 },
 });

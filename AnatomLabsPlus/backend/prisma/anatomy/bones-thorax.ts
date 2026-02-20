@@ -1,7 +1,4 @@
-// THORAX BONES (25 bones: 24 ribs + 1 sternum)
-
 export const THORAX_BONES = [
-  // ==================== STERNUM (1) ====================
   {
     name: 'Sternum',
     type: 'bone',
@@ -13,8 +10,6 @@ export const THORAX_BONES = [
     position3D: { x: 0, y: 1.22, z: 0.1 },
     exercises: []
   },
-
-  // ==================== RIBS - TRUE RIBS 1-7 (14) ====================
   {
     name: 'Rib 1 (Left)',
     type: 'bone',
@@ -169,8 +164,6 @@ export const THORAX_BONES = [
     position3D: { x: 0.14, y: 1.1, z: 0.08 },
     exercises: []
   },
-
-  // ==================== RIBS - FALSE RIBS 8-10 (6) ====================
   {
     name: 'Rib 8 (Left)',
     type: 'bone',
@@ -237,8 +230,6 @@ export const THORAX_BONES = [
     position3D: { x: 0.12, y: 0.95, z: 0.05 },
     exercises: []
   },
-
-  // ==================== RIBS - FLOATING RIBS 11-12 (4) ====================
   {
     name: 'Rib 11 (Left)',
     type: 'bone',

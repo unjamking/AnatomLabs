@@ -1,6 +1,5 @@
 import { Easing } from 'react-native-reanimated';
 
-// Timing configurations
 export const ANIMATION_DURATION = {
   fast: 150,
   normal: 300,
@@ -8,7 +7,6 @@ export const ANIMATION_DURATION = {
   verySlow: 800,
 };
 
-// Spring configurations
 export const SPRING_CONFIG = {
   gentle: {
     damping: 15,
@@ -32,7 +30,6 @@ export const SPRING_CONFIG = {
   },
 };
 
-// Easing presets
 export const EASING = {
   easeIn: Easing.bezier(0.42, 0, 1, 1),
   easeOut: Easing.bezier(0, 0, 0.58, 1),
@@ -41,7 +38,6 @@ export const EASING = {
   bounce: Easing.bezier(0.68, -0.55, 0.265, 1.55),
 };
 
-// Theme colors (matching the app's dark theme)
 export const COLORS = {
   primary: '#e74c3c',
   primaryDark: '#c0392b',
@@ -58,10 +54,8 @@ export const COLORS = {
   info: '#3498db',
 };
 
-// Stagger delay for list animations
 export const STAGGER_DELAY = 50;
 
-// Common shadow styles for depth
 export const SHADOWS = {
   small: {
     shadowColor: '#000',

@@ -1,7 +1,4 @@
-// VERTEBRAL COLUMN (26 bones: 7 cervical + 12 thoracic + 5 lumbar + 1 sacrum + 1 coccyx)
-
 export const SPINE_BONES = [
-  // ==================== CERVICAL VERTEBRAE (7) ====================
   {
     name: 'Atlas (C1)',
     type: 'bone',
@@ -81,8 +78,6 @@ export const SPINE_BONES = [
     position3D: { x: 0, y: 1.43, z: -0.05 },
     exercises: []
   },
-
-  // ==================== THORACIC VERTEBRAE (12) ====================
   {
     name: 'T1 Vertebra',
     type: 'bone',
@@ -217,8 +212,6 @@ export const SPINE_BONES = [
       { name: 'Thoracic Extension', rank: 1, description: 'Improves mobility at thoracolumbar junction.' },
     ]
   },
-
-  // ==================== LUMBAR VERTEBRAE (5) ====================
   {
     name: 'L1 Vertebra',
     type: 'bone',
@@ -277,8 +270,6 @@ export const SPINE_BONES = [
       { name: 'Hip Hinge Pattern', rank: 2, description: 'Reduces stress on L5.' },
     ]
   },
-
-  // ==================== SACRUM & COCCYX (2) ====================
   {
     name: 'Sacrum',
     type: 'bone',

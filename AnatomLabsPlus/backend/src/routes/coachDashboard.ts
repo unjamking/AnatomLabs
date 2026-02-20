@@ -3,8 +3,30 @@ import prisma from '../lib/prisma';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { requireCoach } from '../middleware/coach';
 import { createNotification } from '../services/notifications';
+import { containsInappropriateContent, getContentError } from '../services/contentFilter';
+import { isImageSafe } from '../services/imageModeration';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
+
+const imageStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const dir = 'uploads/posts';
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (_req, file, cb) => {
+    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`);
+  },
+});
+const uploadImage = multer({
+  storage: imageStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only image files are allowed'));
+  },
+});
 
 const avatarStorage = multer.diskStorage({
   destination: 'uploads/avatars',
@@ -51,6 +73,10 @@ router.put('/profile', authenticateToken, requireCoach, async (req: AuthRequest,
   try {
     const { bio, price, availability, avatar, specialty } = req.body;
 
+    if (bio !== undefined && containsInappropriateContent(bio)) {
+      return res.status(400).json({ error: getContentError('Bio') });
+    }
+
     const data: any = {};
     if (bio !== undefined) data.bio = bio;
     if (price !== undefined) data.price = parseFloat(price);
@@ -58,10 +84,18 @@ router.put('/profile', authenticateToken, requireCoach, async (req: AuthRequest,
     if (avatar !== undefined) data.avatar = avatar;
     if (specialty !== undefined) data.specialty = specialty;
 
-    const profile = await prisma.coachProfile.update({
-      where: { userId: req.userId! },
-      data,
-    });
+    const [profile] = await prisma.$transaction([
+      prisma.coachProfile.update({
+        where: { userId: req.userId! },
+        data,
+      }),
+      ...(avatar !== undefined ? [
+        prisma.user.update({
+          where: { id: req.userId! },
+          data: { avatar },
+        })
+      ] : [])
+    ]);
 
     res.json({ message: 'Profile updated', profile });
   } catch (error) {
@@ -75,16 +109,46 @@ router.post('/avatar', authenticateToken, requireCoach, uploadAvatar.single('ava
     const file = (req as any).file;
     if (!file) return res.status(400).json({ error: 'No image uploaded' });
 
+    const { safe, reason } = await isImageSafe(file.path);
+    if (!safe) {
+      fs.unlinkSync(file.path);
+      return res.status(400).json({ error: reason });
+    }
+
     const avatarUrl = `/uploads/avatars/${file.filename}`;
 
-    const profile = await prisma.coachProfile.update({
-      where: { userId: req.userId! },
-      data: { avatar: avatarUrl },
-    });
+    const [profile] = await prisma.$transaction([
+      prisma.coachProfile.update({
+        where: { userId: req.userId! },
+        data: { avatar: avatarUrl },
+      }),
+      prisma.user.update({
+        where: { id: req.userId! },
+        data: { avatar: avatarUrl },
+      })
+    ]);
 
     res.json({ avatarUrl, profile });
   } catch (error) {
     console.error('Error uploading avatar:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/upload-image', authenticateToken, requireCoach, uploadImage.single('image') as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const file = (req as any).file;
+    if (!file) return res.status(400).json({ error: 'No image uploaded' });
+
+    const { safe, reason } = await isImageSafe(file.path);
+    if (!safe) {
+      fs.unlinkSync(file.path);
+      return res.status(400).json({ error: reason });
+    }
+
+    res.json({ imageUrl: `/uploads/posts/${file.filename}` });
+  } catch (error) {
+    console.error('Error uploading post image:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -98,6 +162,10 @@ router.post('/posts', authenticateToken, requireCoach, async (req: AuthRequest, 
 
     if (!caption) {
       return res.status(400).json({ error: 'Caption is required' });
+    }
+
+    if (containsInappropriateContent(caption)) {
+      return res.status(400).json({ error: getContentError('Caption') });
     }
 
     const post = await prisma.coachPost.create({
@@ -145,6 +213,14 @@ router.post('/stories', authenticateToken, requireCoach, async (req: AuthRequest
 
     if (!type || !title || !description) {
       return res.status(400).json({ error: 'type, title, and description are required' });
+    }
+
+    if (containsInappropriateContent(title)) {
+      return res.status(400).json({ error: getContentError('Title') });
+    }
+
+    if (containsInappropriateContent(description)) {
+      return res.status(400).json({ error: getContentError('Description') });
     }
 
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);

@@ -16,6 +16,7 @@ model User {
   email     String   @unique
   password  String
   name      String
+  avatar    String?
 
   // Physical attributes for calculations
   age       Int?
@@ -66,6 +67,8 @@ model User {
   sentMessages     Message[]
   conversationParticipants ConversationParticipant[]
   follows          Follow[]
+  postLikes        CoachPostLike[]
+  postComments     CoachPostComment[]
   notifications    Notification[]
 
   @@map("users")
@@ -650,14 +653,43 @@ model CoachPost {
   caption         String   @db.Text
   imageUrl        String?
   type            String   @default("photo") // photo, video, carousel
-  likes           Int      @default(0)
+  likesCount      Int      @default(0)
   commentsCount   Int      @default(0)
+  sharesCount     Int      @default(0)
 
   createdAt       DateTime @default(now())
 
   coachProfile    CoachProfile @relation(fields: [coachProfileId], references: [id], onDelete: Cascade)
+  likes           CoachPostLike[]
+  comments        CoachPostComment[]
 
   @@map("coach_posts")
+}
+
+model CoachPostLike {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post      CoachPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@map("coach_post_likes")
+}
+
+model CoachPostComment {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  post      CoachPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("coach_post_comments")
 }
 
 model CoachStory {

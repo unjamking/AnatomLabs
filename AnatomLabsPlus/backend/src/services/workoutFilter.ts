@@ -1,10 +1,3 @@
-/**
- * Workout Filter Service
- *
- * Filters and modifies workout exercises based on user's health conditions
- * and physical limitations to ensure safe and appropriate exercise selection.
- */
-
 import {
   PHYSICAL_LIMITATIONS,
   MEDICAL_CONDITIONS,
@@ -49,13 +42,9 @@ export interface WorkoutFilterResult {
   };
 }
 
-/**
- * Build a set of all contraindicated exercises based on user's conditions
- */
 function buildContraindicationSet(healthContext: UserHealthContext): Set<string> {
   const contraindicated = new Set<string>();
 
-  // Add exercises contraindicated by physical limitations
   for (const limitationId of healthContext.physicalLimitations) {
     const limitation = getPhysicalLimitation(limitationId);
     if (limitation) {
@@ -65,7 +54,6 @@ function buildContraindicationSet(healthContext: UserHealthContext): Set<string>
     }
   }
 
-  // Add exercises to avoid from medical conditions
   for (const conditionId of healthContext.medicalConditions) {
     const condition = getMedicalCondition(conditionId);
     if (condition) {
@@ -78,9 +66,6 @@ function buildContraindicationSet(healthContext: UserHealthContext): Set<string>
   return contraindicated;
 }
 
-/**
- * Build a set of exercises that need modification/caution
- */
 function buildModificationSet(healthContext: UserHealthContext): Set<string> {
   const needsModification = new Set<string>();
 
@@ -105,9 +90,6 @@ function buildModificationSet(healthContext: UserHealthContext): Set<string> {
   return needsModification;
 }
 
-/**
- * Get alternative exercises for a contraindicated exercise
- */
 function getAlternativeExercise(
   exerciseName: string,
   healthContext: UserHealthContext,
@@ -115,13 +97,11 @@ function getAlternativeExercise(
 ): { alternative: string | null; source: string } {
   const lowerName = exerciseName.toLowerCase();
 
-  // Check each limitation for safe alternatives
   for (const limitationId of healthContext.physicalLimitations) {
     const limitation = getPhysicalLimitation(limitationId);
     if (limitation && limitation.safeAlternatives) {
       for (const [key, alternatives] of Object.entries(limitation.safeAlternatives)) {
         if (lowerName.includes(key.toLowerCase())) {
-          // Find an alternative that isn't also contraindicated
           for (const alt of alternatives) {
             if (!contraindicated.has(alt.toLowerCase())) {
               return { alternative: alt, source: limitation.name };
@@ -135,9 +115,6 @@ function getAlternativeExercise(
   return { alternative: null, source: '' };
 }
 
-/**
- * Collect all warnings from user's conditions
- */
 function collectWarnings(healthContext: UserHealthContext): string[] {
   const warnings: string[] = [];
 
@@ -155,13 +132,9 @@ function collectWarnings(healthContext: UserHealthContext): string[] {
     }
   }
 
-  // Remove duplicates
   return [...new Set(warnings)];
 }
 
-/**
- * Collect recommended exercise types from conditions
- */
 function collectRecommendations(healthContext: UserHealthContext): string[] {
   const recommendations: string[] = [];
 
@@ -177,18 +150,13 @@ function collectRecommendations(healthContext: UserHealthContext): string[] {
   return recommendations;
 }
 
-/**
- * Check if exercise name matches any in the set (fuzzy matching)
- */
 function matchesExerciseSet(exerciseName: string, exerciseSet: Set<string>): boolean {
   const lowerName = exerciseName.toLowerCase();
 
-  // Direct match
   if (exerciseSet.has(lowerName)) {
     return true;
   }
 
-  // Check if any set item is contained in the exercise name
   for (const setItem of exerciseSet) {
     if (lowerName.includes(setItem) || setItem.includes(lowerName)) {
       return true;
@@ -198,9 +166,6 @@ function matchesExerciseSet(exerciseName: string, exerciseSet: Set<string>): boo
   return false;
 }
 
-/**
- * Get modification notes for an exercise based on user's conditions
- */
 function getModificationNotes(
   exerciseName: string,
   healthContext: UserHealthContext
@@ -211,7 +176,6 @@ function getModificationNotes(
   for (const limitationId of healthContext.physicalLimitations) {
     const limitation = getPhysicalLimitation(limitationId);
     if (limitation) {
-      // Check if this exercise needs modification for this limitation
       for (const modEx of limitation.modifyExercises) {
         if (lowerName.includes(modEx.toLowerCase())) {
           notes.push(`Modified for ${limitation.name}: Use lighter weight and controlled movements`);
@@ -229,7 +193,6 @@ function getModificationNotes(
         }
       }
 
-      // Add max intensity warning if applicable
       if (condition.exerciseRestrictions.maxIntensity) {
         notes.push(
           `Max intensity: ${condition.exerciseRestrictions.maxIntensity} (due to ${condition.name})`
@@ -241,14 +204,10 @@ function getModificationNotes(
   return notes;
 }
 
-/**
- * Main filter function - filters workout exercises based on health context
- */
 export function filterWorkoutForHealth(
   exercises: WorkoutExerciseTemplate[],
   healthContext: UserHealthContext
 ): WorkoutFilterResult {
-  // Return unmodified if no health conditions
   if (
     healthContext.physicalLimitations.length === 0 &&
     healthContext.medicalConditions.length === 0
@@ -285,7 +244,6 @@ export function filterWorkoutForHealth(
     const isContraindicated = matchesExerciseSet(exerciseName, contraindicated);
 
     if (isContraindicated) {
-      // Try to find an alternative
       const { alternative, source } = getAlternativeExercise(
         exerciseName,
         healthContext,
@@ -293,7 +251,6 @@ export function filterWorkoutForHealth(
       );
 
       if (alternative) {
-        // Replace with alternative
         filteredExercises.push({
           ...exercise,
           exerciseName: alternative,
@@ -309,14 +266,12 @@ export function filterWorkoutForHealth(
           reason: source
         });
       } else {
-        // Remove entirely
         removedExercises.push({
           name: exerciseName,
           reason: 'Contraindicated for your health conditions'
         });
       }
     } else if (matchesExerciseSet(exerciseName, needsModification)) {
-      // Keep but add modification notes
       const modNotes = getModificationNotes(exerciseName, healthContext);
 
       filteredExercises.push({
@@ -334,7 +289,6 @@ export function filterWorkoutForHealth(
         });
       }
     } else {
-      // Keep as-is
       filteredExercises.push({
         ...exercise,
         wasModified: false
@@ -342,7 +296,6 @@ export function filterWorkoutForHealth(
     }
   }
 
-  // Get limitation and condition names for summary
   const limitationNames = healthContext.physicalLimitations
     .map(id => getPhysicalLimitation(id)?.name || id)
     .filter(Boolean);
@@ -366,9 +319,6 @@ export function filterWorkoutForHealth(
   };
 }
 
-/**
- * Quick check if a workout needs filtering
- */
 export function needsHealthFiltering(healthContext: UserHealthContext): boolean {
   return (
     healthContext.physicalLimitations.length > 0 ||
@@ -376,9 +326,6 @@ export function needsHealthFiltering(healthContext: UserHealthContext): boolean 
   );
 }
 
-/**
- * Get a summary of health-based workout modifications
- */
 export function getHealthFilterSummary(healthContext: UserHealthContext): string {
   if (!needsHealthFiltering(healthContext)) {
     return 'No health-based modifications needed.';

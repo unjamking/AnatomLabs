@@ -1,21 +1,9 @@
-/**
- * Health Routes
- *
- * API endpoints for health conditions, allergies, and dietary preferences.
- * Provides master lists for client-side health profile configuration.
- */
-
 import { Router, Response } from 'express';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { getAllHealthConditionOptions } from '../constants/healthConditions';
 
 const router = Router();
 
-/**
- * GET /api/health/conditions
- * Get all available health conditions, limitations, allergies, and dietary preferences
- * Used by the mobile app to populate health profile selection UI
- */
 router.get('/conditions', async (req, res: Response) => {
   try {
     const options = getAllHealthConditionOptions();
@@ -34,10 +22,6 @@ router.get('/conditions', async (req, res: Response) => {
   }
 });
 
-/**
- * GET /api/health/conditions/physical-limitations
- * Get only physical limitations
- */
 router.get('/conditions/physical-limitations', async (req, res: Response) => {
   try {
     const options = getAllHealthConditionOptions();
@@ -54,10 +38,6 @@ router.get('/conditions/physical-limitations', async (req, res: Response) => {
   }
 });
 
-/**
- * GET /api/health/conditions/medical
- * Get only medical conditions
- */
 router.get('/conditions/medical', async (req, res: Response) => {
   try {
     const options = getAllHealthConditionOptions();
@@ -74,10 +54,6 @@ router.get('/conditions/medical', async (req, res: Response) => {
   }
 });
 
-/**
- * GET /api/health/conditions/allergies
- * Get only food allergies
- */
 router.get('/conditions/allergies', async (req, res: Response) => {
   try {
     const options = getAllHealthConditionOptions();
@@ -94,10 +70,6 @@ router.get('/conditions/allergies', async (req, res: Response) => {
   }
 });
 
-/**
- * GET /api/health/conditions/dietary-preferences
- * Get only dietary preferences
- */
 router.get('/conditions/dietary-preferences', async (req, res: Response) => {
   try {
     const options = getAllHealthConditionOptions();

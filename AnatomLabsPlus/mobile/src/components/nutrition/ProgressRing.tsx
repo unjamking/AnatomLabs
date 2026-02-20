@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 interface ProgressRingProps {
-  progress: number; // 0-100
+  progress: number;
   size: number;
   strokeWidth: number;
   color: string;
@@ -22,12 +22,10 @@ export default function ProgressRing({
 }: ProgressRingProps) {
   const clampedProgress = Math.min(Math.max(progress, 0), 100);
 
-  // Simple circular progress using View-based approach
   const innerSize = size - strokeWidth * 2;
 
   return (
     <View style={[styles.container, { width: size, height: size }]}>
-      {/* Background circle */}
       <View
         style={[
           styles.circle,
@@ -40,7 +38,6 @@ export default function ProgressRing({
         ]}
       />
 
-      {/* Progress indicator - using a simple arc visualization */}
       <View
         style={[
           styles.progressContainer,
@@ -51,7 +48,6 @@ export default function ProgressRing({
           },
         ]}
       >
-        {/* Top arc */}
         <View
           style={[
             styles.arcTop,
@@ -64,7 +60,6 @@ export default function ProgressRing({
             },
           ]}
         />
-        {/* Bottom arc */}
         <View
           style={[
             styles.arcBottom,
@@ -77,7 +72,6 @@ export default function ProgressRing({
             },
           ]}
         />
-        {/* Progress border */}
         <View
           style={[
             styles.progressBorder,
@@ -93,7 +87,6 @@ export default function ProgressRing({
         />
       </View>
 
-      {/* Inner circle (cutout) */}
       <View
         style={[
           styles.innerCircle,
@@ -106,7 +99,6 @@ export default function ProgressRing({
         ]}
       />
 
-      {/* Label container */}
       <View style={styles.labelContainer}>
         <Text style={styles.value}>{value}</Text>
         <Text style={styles.label}>{label}</Text>

@@ -1,41 +1,31 @@
-/**
- * Authentication Middleware
- * 
- * JWT-based authentication for protecting routes
- */
-
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-// Extend Express Request type to include user
 export interface AuthRequest extends Request {
   userId?: string;
   user?: any;
 }
 
-/**
- * Middleware to verify JWT token and attach user ID to request
- */
 export function authenticateToken(
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ): void {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-  
+  const token = authHeader && authHeader.split(' ')[1];
+
   if (!token) {
     res.status(401).json({ error: 'Access token required' });
     return;
   }
-  
+
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     console.error('JWT_SECRET not configured');
     res.status(500).json({ error: 'Server configuration error' });
     return;
   }
-  
+
   try {
     const decoded = jwt.verify(token, secret) as { userId: string };
     req.userId = decoded.userId;
@@ -45,18 +35,15 @@ export function authenticateToken(
   }
 }
 
-/**
- * Generate JWT token for user
- */
 export function generateToken(userId: string): string {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     throw new Error('JWT_SECRET not configured');
   }
-  
+
   return jwt.sign(
     { userId },
     secret,
-    { expiresIn: '7d' } // Token valid for 7 days
+    { expiresIn: '7d' }
   );
 }

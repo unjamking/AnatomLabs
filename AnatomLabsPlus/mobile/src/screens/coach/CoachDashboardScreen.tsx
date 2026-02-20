@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput,
   Alert, ActivityIndicator, Image, Dimensions, Platform, StatusBar,
-  Modal, SafeAreaView,
+  Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -17,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { Booking } from '../../types';
 import { useHaptics } from '../../components/animations';
@@ -52,17 +54,19 @@ function PressableCard({ children, style, onPress, onLongPress, delay = 0 }: any
   const scale = useSharedValue(1);
   const anim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return (
-    <Animated.View entering={FadeInDown.delay(delay).duration(400).springify()} style={anim}>
-      <TouchableOpacity
-        activeOpacity={1}
-        onPressIn={() => { scale.value = withSpring(0.96, { damping: 15, stiffness: 300 }); }}
-        onPressOut={() => { scale.value = withSpring(1, { damping: 12, stiffness: 300 }); }}
-        onPress={onPress}
-        onLongPress={onLongPress}
-        style={style}
-      >
-        {children}
-      </TouchableOpacity>
+    <Animated.View entering={FadeInDown.delay(delay).duration(400).springify()}>
+      <Animated.View style={anim}>
+        <TouchableOpacity
+          activeOpacity={1}
+          onPressIn={() => { scale.value = withSpring(0.96, { damping: 15, stiffness: 300 }); }}
+          onPressOut={() => { scale.value = withSpring(1, { damping: 12, stiffness: 300 }); }}
+          onPress={onPress}
+          onLongPress={onLongPress}
+          style={style}
+        >
+          {children}
+        </TouchableOpacity>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -71,28 +75,27 @@ function StatCard({ v, l, icon, col, onPress, delay }: any) {
   const scale = useSharedValue(1);
   const anim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return (
-    <Animated.View
-      entering={ZoomIn.delay(delay).duration(350).springify()}
-      style={[s.statCard, anim]}
-    >
-      <TouchableOpacity
-        activeOpacity={1}
-        onPressIn={() => { scale.value = withSpring(0.93, { damping: 12, stiffness: 280 }); }}
-        onPressOut={() => { scale.value = withSpring(1, { damping: 12, stiffness: 280 }); }}
-        onPress={onPress}
-        disabled={!onPress}
-      >
-        <LinearGradient colors={[`${col}22`, `${col}06`]} style={s.statCardGrad}>
-          <Animated.View
-            entering={ZoomIn.delay(delay + 100).duration(300)}
-            style={[s.statIcon, { backgroundColor: `${col}20` }]}
-          >
-            <Ionicons name={icon} size={18} color={col} />
-          </Animated.View>
-          <Text style={s.statV}>{v}</Text>
-          <Text style={s.statL}>{l}</Text>
-        </LinearGradient>
-      </TouchableOpacity>
+    <Animated.View entering={ZoomIn.delay(delay).duration(350).springify()}>
+      <Animated.View style={[s.statCard, anim]}>
+        <TouchableOpacity
+          activeOpacity={1}
+          onPressIn={() => { scale.value = withSpring(0.93, { damping: 12, stiffness: 280 }); }}
+          onPressOut={() => { scale.value = withSpring(1, { damping: 12, stiffness: 280 }); }}
+          onPress={onPress}
+          disabled={!onPress}
+        >
+          <LinearGradient colors={[`${col}22`, `${col}06`]} style={s.statCardGrad}>
+            <Animated.View
+              entering={ZoomIn.delay(delay + 100).duration(300)}
+              style={[s.statIcon, { backgroundColor: `${col}20` }]}
+            >
+              <Ionicons name={icon} size={18} color={col} />
+            </Animated.View>
+            <Text style={s.statV}>{v}</Text>
+            <Text style={s.statL}>{l}</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -100,6 +103,7 @@ function StatCard({ v, l, icon, col, onPress, delay }: any) {
 export default function CoachDashboardScreen() {
   const navigation = useNavigation<any>();
   const { trigger } = useHaptics();
+  const { user, updateUser } = useAuth();
   const scrollY = useSharedValue(0);
   const tabX = useSharedValue(0);
   const segmentOpacity = useSharedValue(1);
@@ -219,10 +223,26 @@ export default function CoachDashboardScreen() {
     setCameraVisible(true);
   };
 
+  const uploadAndSetAvatar = async (localUri: string) => {
+    try {
+      const { avatarUrl } = await api.uploadAvatar(localUri);
+      setEditAvatar(avatarUrl);
+      await api.updateCoachProfile({ avatar: avatarUrl });
+      updateUser({ avatar: avatarUrl });
+      setProfile((prev: any) => prev ? { ...prev, avatar: avatarUrl } : prev);
+    } catch {
+      Alert.alert('Error', 'Failed to upload photo');
+    }
+  };
+
   const pickAvatarFromRoll = async () => {
-    trigger('light'); setAvatarSheetVisible(false);
+    trigger('light');
+    setAvatarSheetVisible(false);
     const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.85 });
-    if (!r.canceled && r.assets?.length > 0) setEditAvatar(r.assets[0].uri);
+    if (!r.canceled && r.assets?.length > 0) {
+      setEditAvatar(r.assets[0].uri);
+      await uploadAndSetAvatar(r.assets[0].uri);
+    }
   };
 
   const takeAvatarPhoto = async () => {
@@ -230,28 +250,29 @@ export default function CoachDashboardScreen() {
     trigger('medium');
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.85, base64: false });
-      setEditAvatar(photo.uri); setCameraVisible(false);
+      setEditAvatar(photo.uri);
+      setCameraVisible(false);
+      await uploadAndSetAvatar(photo.uri);
     } catch {}
   };
 
   const handleSave = async () => {
-    setSaving(true); trigger('medium');
+    setSaving(true);
+    trigger('medium');
     try {
-      let avatarUrl = editAvatar.trim() || undefined;
-      if (avatarUrl && (avatarUrl.startsWith('file://') || avatarUrl.startsWith('content://'))) {
-        const { avatarUrl: uploaded } = await api.uploadCoachAvatar(avatarUrl);
-        avatarUrl = uploaded;
-        setEditAvatar(uploaded);
-      }
       await api.updateCoachProfile({
-        bio: editBio, price: parseFloat(editPrice) || 0,
+        bio: editBio,
+        price: parseFloat(editPrice) || 0,
         availability: editAvailability.split(',').map(s => s.trim()).filter(Boolean),
         specialty: editSpecialty.split(',').map(s => s.trim()).filter(Boolean),
-        avatar: avatarUrl,
       });
-      Alert.alert('Saved', 'Profile updated successfully'); loadData();
-    } catch (e: any) { Alert.alert('Error', e?.message || 'Failed to save'); }
-    finally { setSaving(false); }
+      Alert.alert('Saved', 'Profile updated successfully');
+      loadData();
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDeletePost = (postId: string) => {
@@ -272,7 +293,7 @@ export default function CoachDashboardScreen() {
 
   const pending = bookings.filter(b => b.status === 'PENDING');
   const confirmed = bookings.filter(b => b.status === 'CONFIRMED');
-  const past = bookings.filter(b => b.status !== 'PENDING' && b.status !== 'CONFIRMED');
+  const past = bookings.filter(b => b.status === 'COMPLETED' || b.status === 'CANCELLED');
 
   if (loading && !profile) {
     return (
@@ -541,6 +562,44 @@ export default function CoachDashboardScreen() {
                 <Animated.View entering={FadeInDown.delay(80).duration(350)} style={s.emptyCard}>
                   <Ionicons name="checkmark-circle-outline" size={30} color={TEXT3} />
                   <Text style={s.emptyCardText}>No pending requests</Text>
+                </Animated.View>
+              )}
+
+              {confirmed.length > 0 && (
+                <Animated.View entering={FadeInDown.delay(160).duration(350)}>
+                  <Text style={[s.sectionLabel, { marginTop: 28 }]}>Confirmed</Text>
+                  {confirmed.map((b, i) => (
+                    <Animated.View key={b.id} entering={SlideInLeft.delay(180 + i * 70).duration(320).springify()}>
+                      <View style={s.requestCard}>
+                        <View style={s.requestTop}>
+                          <View style={[s.requestAvatar, { backgroundColor: 'rgba(46,204,113,0.15)' }]}>
+                            <Text style={s.requestAvatarText}>{initials(b.client?.name || 'C')}</Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.requestName}>{b.client?.name || 'Client'}</Text>
+                            <Text style={s.requestTime}>{b.timeSlot} · {new Date(b.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
+                          </View>
+                          <View style={[s.newPill, { backgroundColor: 'rgba(46,204,113,0.1)' }]}>
+                            <Ionicons name="checkmark-circle" size={11} color="#2ecc71" />
+                            <Text style={[s.newPillText, { color: '#2ecc71' }]}>Confirmed</Text>
+                          </View>
+                        </View>
+                        {b.goal ? (
+                          <View style={s.goalRow}>
+                            <Ionicons name="flag-outline" size={13} color={TEXT3} />
+                            <Text style={s.goalText} numberOfLines={2}>{b.goal}</Text>
+                          </View>
+                        ) : null}
+                        <TouchableOpacity
+                          style={s.completeBtn}
+                          onPress={() => handleBookingAction(b.id, 'COMPLETED')}
+                        >
+                          <Ionicons name="checkmark-done" size={15} color="#2ecc71" />
+                          <Text style={s.completeBtnText}>Mark as Complete</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </Animated.View>
+                  ))}
                 </Animated.View>
               )}
 
@@ -857,6 +916,8 @@ const s = StyleSheet.create({
   acceptBtn: { flex: 2, borderRadius: 14, overflow: 'hidden' },
   acceptGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   acceptText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  completeBtn: { marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 14, backgroundColor: 'rgba(46,204,113,0.08)', borderWidth: 1, borderColor: 'rgba(46,204,113,0.2)' },
+  completeBtnText: { fontSize: 14, fontWeight: '600', color: '#2ecc71' },
 
   historyList: { backgroundColor: CARD, borderRadius: 20, borderWidth: 1, borderColor: BORDER, overflow: 'hidden' },
   historyRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, paddingHorizontal: 16 },

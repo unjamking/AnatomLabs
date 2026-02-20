@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { containsInappropriateContent, getContentError } from '../services/contentFilter';
 
 const router = Router();
 
@@ -20,7 +21,7 @@ router.get('/conversations', authenticateToken, async (req: AuthRequest, res: Re
       where: { id: { in: conversationIds } },
       include: {
         participants: {
-          include: { user: { select: { id: true, name: true } } },
+          include: { user: { select: { id: true, name: true, avatar: true } } },
         },
         messages: {
           orderBy: { createdAt: 'desc' },
@@ -46,6 +47,7 @@ router.get('/conversations', authenticateToken, async (req: AuthRequest, res: Re
           participants: conv.participants.map(p => ({
             id: p.user.id,
             name: p.user.name,
+            avatar: p.user.avatar,
           })),
           lastMessage: conv.messages[0]
             ? {
@@ -90,13 +92,18 @@ router.post('/conversations', authenticateToken, async (req: AuthRequest, res: R
       },
       include: {
         participants: {
-          include: { user: { select: { id: true, name: true } } },
+          include: { user: { select: { id: true, name: true, avatar: true } } },
         },
       },
     });
 
     if (existing) {
-      return res.json({ conversation: { id: existing.id, participants: existing.participants.map(p => ({ id: p.user.id, name: p.user.name })) } });
+      return res.json({ 
+        conversation: { 
+          id: existing.id, 
+          participants: existing.participants.map(p => ({ id: p.user.id, name: p.user.name, avatar: p.user.avatar })) 
+        } 
+      });
     }
 
     const conversation = await prisma.conversation.create({
@@ -110,7 +117,7 @@ router.post('/conversations', authenticateToken, async (req: AuthRequest, res: R
       },
       include: {
         participants: {
-          include: { user: { select: { id: true, name: true } } },
+          include: { user: { select: { id: true, name: true, avatar: true } } },
         },
       },
     });
@@ -118,7 +125,7 @@ router.post('/conversations', authenticateToken, async (req: AuthRequest, res: R
     res.status(201).json({
       conversation: {
         id: conversation.id,
-        participants: conversation.participants.map(p => ({ id: p.user.id, name: p.user.name })),
+        participants: conversation.participants.map(p => ({ id: p.user.id, name: p.user.name, avatar: p.user.avatar })),
       },
     });
   } catch (error) {
@@ -148,7 +155,7 @@ router.get('/conversations/:id/messages', authenticateToken, async (req: AuthReq
 
     const messages = await prisma.message.findMany({
       where,
-      include: { sender: { select: { id: true, name: true } } },
+      include: { sender: { select: { id: true, name: true, avatar: true } } },
       orderBy: { createdAt: 'desc' },
       take: parseInt(limit as string),
     });
@@ -170,6 +177,10 @@ router.post('/conversations/:id/messages', authenticateToken, async (req: AuthRe
       return res.status(400).json({ error: 'Message content is required' });
     }
 
+    if (containsInappropriateContent(content)) {
+      return res.status(400).json({ error: getContentError('Message') });
+    }
+
     const participant = await prisma.conversationParticipant.findUnique({
       where: { conversationId_userId: { conversationId: id, userId } },
     });
@@ -181,7 +192,7 @@ router.post('/conversations/:id/messages', authenticateToken, async (req: AuthRe
     const [message] = await prisma.$transaction([
       prisma.message.create({
         data: { conversationId: id, senderId: userId, content: content.trim() },
-        include: { sender: { select: { id: true, name: true } } },
+        include: { sender: { select: { id: true, name: true, avatar: true } } },
       }),
       prisma.conversation.update({
         where: { id },
