@@ -33,13 +33,16 @@
       "package": "com.anatomlabs.plus",
       "permissions": [
         "CAMERA",
-        "android.permission.ACTIVITY_RECOGNITION"
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "./plugins/withPickerFix",
       "expo-build-properties",
       [
         "expo-camera",
@@ -54,6 +57,11 @@
         }
       ],
       "react-native-health-connect"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "10bb44be-5518-45a6-a955-de57a1f615af"
+      }
+    }
   }
 }
