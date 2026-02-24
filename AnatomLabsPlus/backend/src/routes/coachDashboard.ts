@@ -50,11 +50,14 @@ router.get('/profile', authenticateToken, requireCoach, async (req: AuthRequest,
     const profile = await prisma.coachProfile.findUnique({
       where: { userId: req.userId! },
       include: {
+        user: { select: { id: true, name: true, email: true } },
         posts: { orderBy: { createdAt: 'desc' } },
         stories: {
           where: { expiresAt: { gt: new Date() } },
           orderBy: { createdAt: 'desc' },
         },
+        followers: { include: { user: { select: { id: true, name: true, email: true, avatar: true } } }, orderBy: { createdAt: 'desc' } },
+        reviews: { orderBy: { createdAt: 'desc' }, include: { user: { select: { id: true, name: true } } } },
       },
     });
 
@@ -62,7 +65,27 @@ router.get('/profile', authenticateToken, requireCoach, async (req: AuthRequest,
       return res.status(404).json({ error: 'Coach profile not found' });
     }
 
-    res.json(profile);
+    const followerCount = profile.followers.length;
+    const reviewCount = profile.reviews.length;
+    const avgRating = reviewCount > 0
+      ? Math.round(profile.reviews.reduce((s, r) => s + r.rating, 0) / reviewCount * 10) / 10
+      : 0;
+
+    res.json({
+      ...profile,
+      name: profile.user.name,
+      email: profile.user.email,
+      followerCount,
+      reviewCount,
+      rating: avgRating,
+      followers: profile.followers.map(f => ({
+        id: f.user.id,
+        name: f.user.name,
+        email: f.user.email,
+        avatar: (f.user as any).avatar ?? null,
+        followedAt: f.createdAt,
+      })),
+    });
   } catch (error) {
     console.error('Error fetching coach profile:', error);
     res.status(500).json({ error: 'Internal server error' });

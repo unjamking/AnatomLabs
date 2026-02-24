@@ -1257,6 +1257,11 @@ class ApiService {
     return response.data;
   }
 
+  async getPostComments(postId: string): Promise<any[]> {
+    const response = await this.api.get(`/coaches/posts/${postId}/comments`);
+    return response.data;
+  }
+
   async commentOnPost(postId: string, content: string): Promise<any> {
     const response = await this.api.post(`/coaches/posts/${postId}/comment`, { content });
     return response.data;
@@ -1264,6 +1269,11 @@ class ApiService {
 
   async sharePost(postId: string): Promise<{ message: string }> {
     const response = await this.api.post(`/coaches/posts/${postId}/share`);
+    return response.data;
+  }
+
+  async likeComment(commentId: string): Promise<{ liked: boolean }> {
+    const response = await this.api.post(`/coaches/posts/comments/${commentId}/like`);
     return response.data;
   }
 }

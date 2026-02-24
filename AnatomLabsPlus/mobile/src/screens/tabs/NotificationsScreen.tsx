@@ -111,7 +111,7 @@ export default function NotificationsScreen() {
             if (item.type.startsWith('BOOKING')) {
               navigation.navigate('Bookings');
             } else if (item.type === 'FOLLOW') {
-              navigation.navigate('CoachMarketplace');
+              navigation.navigate('Coaches');
             }
           }}
         >

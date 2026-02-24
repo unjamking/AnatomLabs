@@ -341,10 +341,16 @@ export default function HomeScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <BlurHeader
-        title="Home"
+        title=""
         scrollY={scrollY}
         rightElement={
           <View style={styles.headerRight}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Conversations')}
+              style={styles.notificationBtn}
+            >
+              <Ionicons name="chatbubble-outline" size={22} color={COLORS.text} />
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={() => navigation.navigate('Notifications')}
               style={styles.notificationBtn}

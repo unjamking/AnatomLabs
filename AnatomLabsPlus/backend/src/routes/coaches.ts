@@ -230,7 +230,10 @@ router.post('/:id/follow', authenticateToken, async (req: AuthRequest, res: Resp
       }),
     ]);
 
-    // Create notification for coach
+    await prisma.notification.deleteMany({
+      where: { userId: coachProfile.userId, type: 'FOLLOW', data: { path: ['followerId'], equals: userId } },
+    });
+
     await createNotification(
       coachProfile.userId,
       'FOLLOW',
@@ -326,6 +329,33 @@ router.post('/posts/:postId/like', authenticateToken, async (req: AuthRequest, r
   }
 });
 
+router.get('/posts/:postId/comments', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { postId } = req.params;
+    const currentUserId = req.userId;
+    const comments = await prisma.coachPostComment.findMany({
+      where: { postId },
+      include: {
+        user: { select: { id: true, name: true, avatar: true } },
+        likes: currentUserId ? { where: { userId: currentUserId } } : false,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    res.json(comments.map(c => ({
+      id: c.id,
+      userId: c.userId,
+      userName: c.user.name,
+      userAvatar: (c.user as any).avatar ?? null,
+      content: c.content,
+      likesCount: c.likesCount,
+      isLiked: c.likes && c.likes.length > 0,
+      timestamp: c.createdAt.toISOString(),
+    })));
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch comments' });
+  }
+});
+
 router.post('/posts/:postId/comment', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { postId } = req.params;
@@ -365,7 +395,14 @@ router.post('/posts/:postId/comment', authenticateToken, async (req: AuthRequest
       );
     }
 
-    res.json(comment);
+    res.json({
+      id: comment.id,
+      userId: comment.userId,
+      userName: comment.user.name,
+      userAvatar: null,
+      content: comment.content,
+      timestamp: comment.createdAt.toISOString(),
+    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to comment' });
   }
@@ -460,6 +497,40 @@ router.post('/posts/:postId/share', authenticateToken, async (req: AuthRequest, 
     res.json({ message: 'Shared successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to share post' });
+  }
+});
+
+router.post('/posts/comments/:commentId/like', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { commentId } = req.params;
+    const userId = req.userId!;
+
+    const existing = await prisma.coachPostCommentLike.findUnique({
+      where: { commentId_userId: { commentId, userId } },
+    });
+
+    if (existing) {
+      await prisma.$transaction([
+        prisma.coachPostCommentLike.delete({ where: { id: existing.id } }),
+        prisma.coachPostComment.update({
+          where: { id: commentId },
+          data: { likesCount: { decrement: 1 } },
+        }),
+      ]);
+      return res.json({ liked: false });
+    }
+
+    await prisma.$transaction([
+      prisma.coachPostCommentLike.create({ data: { commentId, userId } }),
+      prisma.coachPostComment.update({
+        where: { id: commentId },
+        data: { likesCount: { increment: 1 } },
+      }),
+    ]);
+
+    res.json({ liked: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to like comment' });
   }
 });
 

@@ -24,11 +24,12 @@ import { Booking } from '../../types';
 import { useHaptics } from '../../components/animations';
 
 const { width: SW } = Dimensions.get('window');
-type Segment = 'overview' | 'bookings' | 'settings';
+type Segment = 'overview' | 'bookings' | 'messages' | 'settings';
 
 const TABS: { id: Segment; icon: string; activeIcon: string; label: string }[] = [
   { id: 'overview', icon: 'grid-outline', activeIcon: 'grid', label: 'Overview' },
   { id: 'bookings', icon: 'calendar-outline', activeIcon: 'calendar', label: 'Bookings' },
+  { id: 'messages', icon: 'chatbubble-outline', activeIcon: 'chatbubble', label: 'Messages' },
   { id: 'settings', icon: 'settings-outline', activeIcon: 'settings', label: 'Settings' },
 ];
 
@@ -126,6 +127,7 @@ export default function CoachDashboardScreen() {
   const [cameraFacing, setCameraFacing] = useState<'front' | 'back'>('back');
   const [avatarSheetVisible, setAvatarSheetVisible] = useState(false);
   const [selectedPost, setSelectedPost] = useState<any>(null);
+  const [openingChat, setOpeningChat] = useState<string | null>(null);
   const [storyVisible, setStoryVisible] = useState(false);
   const [storyIdx, setStoryIdx] = useState(0);
   const storyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -137,12 +139,18 @@ export default function CoachDashboardScreen() {
     try {
       setLoading(true);
       const [p, b] = await Promise.all([api.getCoachDashboardProfile(), api.getCoachBookings()]);
-      setProfile(p); setBookings(b);
-      setEditBio(p.bio || ''); setEditPrice(p.price?.toString() || '0');
-      setEditAvailability((p.availability || []).join(', '));
-      setEditSpecialty((p.specialty || []).join(', '));
+      setProfile(p);
+      setBookings(Array.isArray(b) ? b : []);
+      setEditBio(p.bio || '');
+      setEditPrice(p.price?.toString() || '0');
+      setEditAvailability((Array.isArray(p.availability) ? p.availability : []).join(', '));
+      setEditSpecialty((Array.isArray(p.specialty) ? p.specialty : []).join(', '));
       setEditAvatar(p.avatar || '');
-    } catch {} finally { setLoading(false); }
+    } catch (e) {
+      console.error('loadData error:', e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -185,7 +193,7 @@ export default function CoachDashboardScreen() {
       withTiming(0, { duration: 220 })
     );
     setTimeout(() => setSegment(t), 120);
-    tabX.value = withSpring(TABS.findIndex(x => x.id === t) * (SW / 3), {
+    tabX.value = withSpring(TABS.findIndex(x => x.id === t) * (SW / 4), {
       damping: 18, stiffness: 220,
     });
   };
@@ -238,7 +246,7 @@ export default function CoachDashboardScreen() {
   const pickAvatarFromRoll = async () => {
     trigger('light');
     setAvatarSheetVisible(false);
-    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.85 });
+    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', allowsEditing: true, aspect: [1, 1], quality: 0.85 });
     if (!r.canceled && r.assets?.length > 0) {
       setEditAvatar(r.assets[0].uri);
       await uploadAndSetAvatar(r.assets[0].uri);
@@ -291,9 +299,27 @@ export default function CoachDashboardScreen() {
     catch (e: any) { Alert.alert('Error', e?.message || 'Failed'); }
   };
 
-  const pending = bookings.filter(b => b.status === 'PENDING');
-  const confirmed = bookings.filter(b => b.status === 'CONFIRMED');
-  const past = bookings.filter(b => b.status === 'COMPLETED' || b.status === 'CANCELLED');
+  const openClientChat = async (clientId: string, clientName: string) => {
+    if (openingChat) return;
+    setOpeningChat(clientId);
+    try {
+      const { conversation } = await api.getOrCreateConversation(clientId);
+      navigation.navigate('Conversation', {
+        conversationId: conversation.id,
+        recipientName: clientName,
+        recipientAvatar: undefined,
+      });
+    } catch {
+      Alert.alert('Error', 'Could not open conversation');
+    } finally {
+      setOpeningChat(null);
+    }
+  };
+
+  const safeBookings = Array.isArray(bookings) ? bookings : [];
+  const pending = safeBookings.filter(b => b.status === 'PENDING');
+  const confirmed = safeBookings.filter(b => b.status === 'CONFIRMED');
+  const past = safeBookings.filter(b => b.status === 'COMPLETED' || b.status === 'CANCELLED');
 
   if (loading && !profile) {
     return (
@@ -429,7 +455,7 @@ export default function CoachDashboardScreen() {
                       key={b.id}
                       delay={700 + i * 80}
                       style={s.sessionCard}
-                      onPress={() => navigation.navigate('Conversations')}
+                      onPress={() => b.client?.id && openClientChat(b.client.id, b.client.name || 'Client')}
                     >
                       <LinearGradient colors={['rgba(52,152,219,0.1)', 'rgba(52,152,219,0.03)']} style={s.sessionGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
                         <View style={s.sessionAvatar}>
@@ -441,7 +467,11 @@ export default function CoachDashboardScreen() {
                           <Text style={s.sessionDate}>{new Date(b.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
                         </View>
                         <View style={s.sessionChatBtn}>
-                          <Ionicons name="chatbubble-ellipses" size={18} color="#3498db" />
+                          {openingChat === b.client?.id ? (
+                            <ActivityIndicator size="small" color="#3498db" />
+                          ) : (
+                            <Ionicons name="chatbubble-ellipses" size={18} color="#3498db" />
+                          )}
                         </View>
                       </LinearGradient>
                     </PressableCard>
@@ -456,28 +486,48 @@ export default function CoachDashboardScreen() {
                 </Animated.View>
               )}
 
-              {(profile?.stories || []).length > 0 && (
-                <Animated.View entering={FadeInDown.delay(750).duration(350)}>
-                  <Text style={[s.sectionLabel, { marginTop: 28 }]}>Your Stories</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 4 }}>
-                    {profile.stories.map((st: any, i: number) => (
-                      <Animated.View key={st.id} entering={SlideInRight.delay(800 + i * 70).duration(350).springify()}>
-                        <TouchableOpacity
-                          style={s.storyThumb}
-                          onPress={() => { setStoryIdx(i); setStoryVisible(true); }}
-                          activeOpacity={0.85}
-                        >
-                          <LinearGradient colors={['#e74c3c', '#9b59b6']} style={StyleSheet.absoluteFill} />
-                          <View style={s.storyThumbInner}>
-                            <Ionicons name="barbell" size={22} color="#fff" />
-                            <Text style={s.storyThumbText} numberOfLines={2}>{st.title}</Text>
+              <Animated.View entering={FadeInDown.delay(750).duration(350)}>
+                <Text style={[s.sectionLabel, { marginTop: 28 }]}>Your Stories</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 18, paddingBottom: 4 }}>
+                  <Animated.View entering={SlideInRight.delay(780).duration(350).springify()}>
+                    <TouchableOpacity style={s.storyBubbleWrap} onPress={() => {}} activeOpacity={0.85}>
+                      <LinearGradient colors={['#f09433', '#e6683c', '#dc2743', '#bc1888']} style={s.storyRing}>
+                        <View style={s.storyAvatarCircle}>
+                          {editAvatar ? (
+                            <Image source={{ uri: editAvatar }} style={s.storyAvatarImg} />
+                          ) : (
+                            <LinearGradient colors={[ACCENT, '#9b0000']} style={s.storyAvatarImg}>
+                              <Text style={s.storyAvatarInitials}>{initials(profile?.name || 'C')}</Text>
+                            </LinearGradient>
+                          )}
+                        </View>
+                      </LinearGradient>
+                      <View style={s.storyAddBadge}>
+                        <Ionicons name="add" size={14} color="#fff" />
+                      </View>
+                      <Text style={s.storyBubbleLabel} numberOfLines={1}>Your story</Text>
+                    </TouchableOpacity>
+                  </Animated.View>
+                  {(profile?.stories || []).map((st: any, i: number) => (
+                    <Animated.View key={st.id} entering={SlideInRight.delay(840 + i * 70).duration(350).springify()}>
+                      <TouchableOpacity
+                        style={s.storyBubbleWrap}
+                        onPress={() => { setStoryIdx(i); setStoryVisible(true); }}
+                        activeOpacity={0.85}
+                      >
+                        <LinearGradient colors={['#e74c3c', '#9b59b6']} style={s.storyRing}>
+                          <View style={s.storyAvatarCircle}>
+                            <View style={[s.storyAvatarImg, { backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' }]}>
+                              <Ionicons name="barbell" size={22} color="#fff" />
+                            </View>
                           </View>
-                        </TouchableOpacity>
-                      </Animated.View>
-                    ))}
-                  </ScrollView>
-                </Animated.View>
-              )}
+                        </LinearGradient>
+                        <Text style={s.storyBubbleLabel} numberOfLines={1}>{st.title}</Text>
+                      </TouchableOpacity>
+                    </Animated.View>
+                  ))}
+                </ScrollView>
+              </Animated.View>
 
               {(profile?.posts || []).length > 0 && (
                 <Animated.View entering={FadeInDown.delay(820).duration(350)}>
@@ -633,6 +683,27 @@ export default function CoachDashboardScreen() {
                 </Animated.View>
               )}
             </View>
+          )}
+
+          {segment === 'messages' && (
+            <Animated.View entering={FadeInDown.delay(60).duration(350)} style={{ flex: 1, marginHorizontal: -16 }}>
+              <TouchableOpacity
+                style={s.messagesEntryBtn}
+                onPress={() => navigation.navigate('Conversations')}
+                activeOpacity={0.8}
+              >
+                <LinearGradient colors={['rgba(231,76,60,0.12)', 'rgba(231,76,60,0.04)']} style={s.messagesEntryGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                  <View style={s.messagesEntryIcon}>
+                    <Ionicons name="chatbubbles" size={22} color={ACCENT} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.messagesEntryTitle}>Client Messages</Text>
+                    <Text style={s.messagesEntrySub}>View all conversations</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={TEXT3} />
+                </LinearGradient>
+              </TouchableOpacity>
+            </Animated.View>
           )}
 
           {segment === 'settings' && (
@@ -870,7 +941,7 @@ const s = StyleSheet.create({
   tabBtn: { flex: 1, paddingVertical: 13, alignItems: 'center', gap: 4 },
   tabLabel: { fontSize: 11, fontWeight: '600', color: TEXT3 },
   tabLabelOn: { color: ACCENT },
-  tabIndicator: { position: 'absolute', bottom: 0, width: SW / 3, height: 2, backgroundColor: ACCENT, borderRadius: 1 },
+  tabIndicator: { position: 'absolute', bottom: 0, width: SW / 4, height: 2, backgroundColor: ACCENT, borderRadius: 1 },
 
   body: { paddingHorizontal: 16, paddingTop: 22 },
 
@@ -928,6 +999,12 @@ const s = StyleSheet.create({
   statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   statusPillText: { fontSize: 11, fontWeight: '700' },
 
+  messagesEntryBtn: { marginHorizontal: 16, marginTop: 8, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(231,76,60,0.2)' },
+  messagesEntryGrad: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14 },
+  messagesEntryIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(231,76,60,0.15)', justifyContent: 'center', alignItems: 'center' },
+  messagesEntryTitle: { fontSize: 15, fontWeight: '700', color: TEXT, marginBottom: 2 },
+  messagesEntrySub: { fontSize: 12, color: TEXT3 },
+
   settingsCard: { backgroundColor: CARD, borderRadius: 26, padding: 20, borderWidth: 1, borderColor: BORDER },
   settingsSection: { marginBottom: 4 },
   settingsLabel: { fontSize: 11, fontWeight: '700', color: TEXT3, textTransform: 'uppercase', letterSpacing: 0.9, marginBottom: 10 },
@@ -954,9 +1031,13 @@ const s = StyleSheet.create({
   shutterBtn: { width: 80, height: 80, borderRadius: 40, borderWidth: 4, borderColor: '#fff', justifyContent: 'center', alignItems: 'center' },
   shutterInner: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#fff' },
 
-  storyThumb: { width: 120, height: 90, borderRadius: 14, overflow: 'hidden', justifyContent: 'flex-end' },
-  storyThumbInner: { padding: 8, gap: 4 },
-  storyThumbText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  storyBubbleWrap: { alignItems: 'center', width: 72, position: 'relative' },
+  storyRing: { width: 68, height: 68, borderRadius: 34, padding: 2.5, justifyContent: 'center', alignItems: 'center' },
+  storyAvatarCircle: { width: 61, height: 61, borderRadius: 31, borderWidth: 2.5, borderColor: BG, overflow: 'hidden' },
+  storyAvatarImg: { width: '100%', height: '100%', borderRadius: 28, justifyContent: 'center', alignItems: 'center' },
+  storyAvatarInitials: { fontSize: 20, fontWeight: '900', color: '#fff' },
+  storyAddBadge: { position: 'absolute', bottom: 20, right: 0, width: 22, height: 22, borderRadius: 11, backgroundColor: ACCENT, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: BG },
+  storyBubbleLabel: { fontSize: 11, color: TEXT2, marginTop: 6, textAlign: 'center', width: 72 },
 
   postViewer: { flex: 1, backgroundColor: '#000' },
 

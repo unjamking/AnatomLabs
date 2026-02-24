@@ -20,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import {
   AnimatedButton,
@@ -90,14 +91,11 @@ export default function LoginScreen({ navigation }: Props) {
 
       <View style={styles.content}>
         <Animated.View style={[styles.header, logoStyle]}>
-          <LinearGradient
-            colors={['#e74c3c', '#c0392b']}
-            style={styles.logoGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Ionicons name="fitness" size={44} color="#fff" />
-          </LinearGradient>
+          <Image
+            source={require('../../../assets/splash-icon.png')}
+            style={styles.logoImg}
+            resizeMode="contain"
+          />
           <Text style={styles.title}>AnatomLabs<Text style={styles.titlePlus}>+</Text></Text>
           <Text style={styles.subtitle}>Human Performance Science</Text>
         </Animated.View>
@@ -184,25 +182,23 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: '18%',
     paddingHorizontal: 28,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 36,
   },
-  logoGradient: {
-    width: 80,
-    height: 80,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
+  logoImg: {
+    width: 210,
+    height: 210,
+    marginBottom: -10,
     shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.5,
+    shadowRadius: 28,
+    elevation: 14,
   },
   title: {
     fontSize: 36,

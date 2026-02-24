@@ -8,13 +8,30 @@ import {
   ActivityIndicator,
   Image,
   Platform,
+  RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import Animated, {
+  FadeInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
 import { Conversation } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { COLORS, FadeIn, AnimatedListItem } from '../../components/animations';
+import { COLORS } from '../../components/animations';
+
+const BG = '#0a0a0a';
+const CARD = '#1a1a1a';
+const BORDER = '#2a2a2a';
+const TEXT = '#ffffff';
+const TEXT2 = 'rgba(255,255,255,0.5)';
+const TEXT3 = 'rgba(255,255,255,0.3)';
+const ACCENT = '#e74c3c';
 
 function getInitials(name: string): string {
   if (!name) return '??';
@@ -29,7 +46,62 @@ function timeAgo(timestamp: string): string {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h`;
   const days = Math.floor(hrs / 24);
-  return `${days}d`;
+  if (days < 7) return `${days}d`;
+  return new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function ConversationRow({ item, index, user, onPress }: any) {
+  const scale = useSharedValue(1);
+  const anim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const other = item.participants.find((p: any) => p.id !== user?.id) || item.participants[0];
+  const hasUnread = item.unreadCount > 0;
+
+  return (
+    <Animated.View entering={FadeInDown.delay(index * 50).duration(350).springify()}>
+      <Animated.View style={anim}>
+        <TouchableOpacity
+          activeOpacity={1}
+          onPressIn={() => { scale.value = withSpring(0.97, { damping: 15, stiffness: 300 }); }}
+          onPressOut={() => { scale.value = withSpring(1, { damping: 12, stiffness: 300 }); }}
+          onPress={onPress}
+          style={s.row}
+        >
+          <View style={s.avatarWrap}>
+            {other.avatar ? (
+              <Image source={{ uri: other.avatar }} style={s.avatar} />
+            ) : (
+              <View style={[s.avatar, s.avatarFallback]}>
+                <Text style={s.avatarText}>{getInitials(other.name)}</Text>
+              </View>
+            )}
+            {hasUnread && <View style={s.activeDot} />}
+          </View>
+
+          <View style={s.info}>
+            <View style={s.topRow}>
+              <Text style={[s.name, hasUnread && s.nameBold]} numberOfLines={1}>
+                {other.name}
+              </Text>
+              <Text style={[s.time, hasUnread && s.timeAccent]}>
+                {item.lastMessage ? timeAgo(item.lastMessage.createdAt) : ''}
+              </Text>
+            </View>
+            <View style={s.bottomRow}>
+              <Text style={[s.preview, hasUnread && s.previewBold]} numberOfLines={1}>
+                {item.lastMessage?.senderId === user?.id ? 'You: ' : ''}
+                {item.lastMessage?.content || 'No messages yet'}
+              </Text>
+              {hasUnread && (
+                <View style={s.badge}>
+                  <Text style={s.badgeText}>{item.unreadCount}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    </Animated.View>
+  );
 }
 
 export default function ConversationsListScreen() {
@@ -40,290 +112,137 @@ export default function ConversationsListScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const loadConversations = useCallback(async () => {
+  const load = useCallback(async () => {
     try {
       const data = await api.getConversations();
       setConversations(data);
-    } catch (error) {
-      console.error('Failed to load conversations:', error);
-    } finally {
+    } catch {}
+    finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    loadConversations();
-    pollRef.current = setInterval(loadConversations, 10000);
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [loadConversations]);
+    load();
+    pollRef.current = setInterval(load, 8000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [load]);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadConversations();
-  };
+  const totalUnread = conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
 
-  const getOtherParticipant = (conv: Conversation) => {
-    return conv.participants.find(p => p.id !== user?.id) || conv.participants[0];
-  };
-
-  const renderItem = ({ item, index }: { item: Conversation; index: number }) => {
-    const other = getOtherParticipant(item);
+  if (loading) {
     return (
-      <AnimatedListItem index={index} enterFrom="bottom">
-        <TouchableOpacity
-          style={styles.conversationItem}
-          onPress={() => navigation.navigate('Conversation', { 
-            conversationId: item.id, 
-            recipientName: other.name,
-            recipientAvatar: other.avatar 
-          })}
-          activeOpacity={0.7}
-        >
-          <View style={styles.avatarContainer}>
-            {other.avatar ? (
-              <Image source={{ uri: other.avatar }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, styles.initialsAvatar]}>
-                <Text style={styles.avatarText}>{getInitials(other.name)}</Text>
-              </View>
-            )}
-            {item.unreadCount > 0 && <View style={styles.onlineBadge} />}
-          </View>
-          
-          <View style={styles.conversationInfo}>
-            <View style={styles.topRow}>
-              <Text style={[styles.name, item.unreadCount > 0 && styles.unreadName]} numberOfLines={1}>
-                {other.name}
-              </Text>
-              {item.lastMessage && (
-                <Text style={[styles.time, item.unreadCount > 0 && styles.unreadTime]}>
-                  {timeAgo(item.lastMessage.createdAt)}
-                </Text>
-              )}
-            </View>
-            <View style={styles.bottomRow}>
-              <Text style={[styles.preview, item.unreadCount > 0 && styles.unreadPreview]} numberOfLines={1}>
-                {item.lastMessage?.senderId === user?.id ? 'You: ' : ''}
-                {item.lastMessage?.content || 'No messages yet'}
-              </Text>
-              {item.unreadCount > 0 && (
-                <View style={styles.unreadCountBadge}>
-                  <Text style={styles.unreadCountText}>{item.unreadCount}</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </TouchableOpacity>
-      </AnimatedListItem>
-    );
-  };
-
-  if (loading && conversations.length === 0) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={s.centered}>
+        <ActivityIndicator size="large" color={ACCENT} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
+    <View style={s.root}>
+      <SafeAreaView style={s.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+          <Ionicons name="chevron-back" size={24} color={TEXT} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Messages</Text>
+        <View style={s.headerCenter}>
+          <Text style={s.headerTitle}>Messages</Text>
+          {totalUnread > 0 && (
+            <View style={s.headerBadge}>
+              <Text style={s.headerBadgeText}>{totalUnread}</Text>
+            </View>
+          )}
+        </View>
         <View style={{ width: 44 }} />
-      </View>
+      </SafeAreaView>
 
       {conversations.length === 0 ? (
-        <FadeIn delay={200}>
-          <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconCircle}>
-              <Ionicons name="chatbubbles-outline" size={40} color={COLORS.primary} />
-            </View>
-            <Text style={styles.emptyText}>No conversations yet</Text>
-            <Text style={styles.emptySubtext}>Connect with coaches to start chatting</Text>
+        <Animated.View entering={FadeInDown.delay(100).duration(400)} style={s.empty}>
+          <View style={s.emptyIcon}>
+            <Ionicons name="chatbubbles-outline" size={38} color={ACCENT} />
           </View>
-        </FadeIn>
+          <Text style={s.emptyTitle}>No messages yet</Text>
+          <Text style={s.emptySub}>Your client conversations will appear here</Text>
+        </Animated.View>
       ) : (
         <FlatList
           data={conversations}
           keyExtractor={item => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.list}
-          refreshing={refreshing}
-          onRefresh={onRefresh}
+          renderItem={({ item, index }) => (
+            <ConversationRow
+              item={item}
+              index={index}
+              user={user}
+              onPress={() => {
+                const other = item.participants.find((p: any) => p.id !== user?.id) || item.participants[0];
+                navigation.navigate('Conversation', {
+                  conversationId: item.id,
+                  recipientName: other.name,
+                  recipientAvatar: other.avatar,
+                });
+              }}
+            />
+          )}
+          contentContainerStyle={s.list}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => { setRefreshing(true); load(); }}
+              tintColor={ACCENT}
+            />
+          }
           showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={() => <View style={s.separator} />}
         />
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: BG },
+  centered: { flex: 1, backgroundColor: BG, justifyContent: 'center', alignItems: 'center' },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingHorizontal: 8,
-    paddingBottom: 16,
-    backgroundColor: COLORS.background,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: COLORS.text,
-    letterSpacing: -0.5,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-  },
-  list: {
-    paddingBottom: 40,
-  },
-  conversationItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    gap: 14,
-  },
-  avatarContainer: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-  },
-  initialsAvatar: {
-    backgroundColor: COLORS.cardBackground,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  avatarText: {
-    color: COLORS.text,
-    fontWeight: 'bold',
-    fontSize: 20,
-  },
-  onlineBadge: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: COLORS.primary,
-    borderWidth: 2.5,
-    borderColor: COLORS.background,
-  },
-  conversationInfo: {
-    flex: 1,
+    paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.border,
-    paddingBottom: 14,
-    marginTop: 14,
+    borderBottomColor: BORDER,
   },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  name: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.text,
-    flex: 1,
-  },
-  unreadName: {
-    color: '#fff',
-  },
-  time: {
-    fontSize: 12,
-    color: COLORS.textTertiary,
-  },
-  unreadTime: {
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  bottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  preview: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    flex: 1,
-    marginRight: 12,
-  },
-  unreadPreview: {
-    color: COLORS.text,
-    fontWeight: '600',
-  },
-  unreadCountBadge: {
-    backgroundColor: COLORS.primary,
-    height: 20,
-    minWidth: 20,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-  },
-  unreadCountText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-    marginTop: 100,
-  },
-  emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(231, 76, 60, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
+  backBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+  headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: TEXT, letterSpacing: -0.5 },
+  headerBadge: { backgroundColor: ACCENT, height: 20, minWidth: 20, borderRadius: 10, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 6 },
+  headerBadgeText: { fontSize: 11, fontWeight: '800', color: '#fff' },
+
+  list: { paddingBottom: 40, paddingTop: 4 },
+  separator: { height: StyleSheet.hairlineWidth, backgroundColor: BORDER, marginLeft: 90 },
+
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, gap: 14 },
+
+  avatarWrap: { position: 'relative' },
+  avatar: { width: 58, height: 58, borderRadius: 29 },
+  avatarFallback: { backgroundColor: CARD, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: BORDER },
+  avatarText: { fontSize: 20, fontWeight: '800', color: TEXT },
+  activeDot: { position: 'absolute', bottom: 1, right: 1, width: 15, height: 15, borderRadius: 8, backgroundColor: ACCENT, borderWidth: 2.5, borderColor: BG },
+
+  info: { flex: 1 },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  name: { fontSize: 15, fontWeight: '500', color: TEXT2, flex: 1, marginRight: 8 },
+  nameBold: { fontWeight: '800', color: TEXT },
+  time: { fontSize: 12, color: TEXT3 },
+  timeAccent: { color: ACCENT, fontWeight: '600' },
+  bottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  preview: { fontSize: 14, color: TEXT3, flex: 1, marginRight: 8 },
+  previewBold: { color: TEXT2, fontWeight: '600' },
+  badge: { backgroundColor: ACCENT, height: 20, minWidth: 20, borderRadius: 10, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 6 },
+  badgeText: { fontSize: 11, fontWeight: '800', color: '#fff' },
+
+  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40, gap: 12 },
+  emptyIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(231,76,60,0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  emptyTitle: { fontSize: 18, fontWeight: '800', color: TEXT },
+  emptySub: { fontSize: 14, color: TEXT2, textAlign: 'center', lineHeight: 20 },
 });

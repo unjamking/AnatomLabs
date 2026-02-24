@@ -15,30 +15,60 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, Easing } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  Easing,
+  FadeIn,
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ChatMessage } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { COLORS, FadeIn, AnimatedListItem } from '../../components/animations';
+
+const BG = '#0a0a0a';
+const CARD = '#1a1a1a';
+const BORDER = '#2a2a2a';
+const TEXT = '#ffffff';
+const TEXT2 = 'rgba(255,255,255,0.5)';
+const TEXT3 = 'rgba(255,255,255,0.3)';
+const ACCENT = '#e74c3c';
 
 function getInitials(name: string): string {
   if (!name) return '??';
   return name.split(' ').map(n => n[0]).join('').toUpperCase();
 }
 
-function AnimatedBubble({ children }: { children: React.ReactNode }) {
-  const translateY = useSharedValue(14);
+function formatTime(dateStr: string) {
+  const d = new Date(dateStr);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDateHeader(dateStr: string) {
+  const d = new Date(dateStr);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return 'Today';
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function BubbleIn({ children }: { children: React.ReactNode }) {
+  const y = useSharedValue(10);
   const opacity = useSharedValue(0);
-  const scale = useSharedValue(0.95);
+  const scale = useSharedValue(0.94);
 
   useEffect(() => {
-    translateY.value = withTiming(0, { duration: 280, easing: Easing.out(Easing.exp) });
-    opacity.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.quad) });
-    scale.value = withSpring(1, { damping: 18, stiffness: 260 });
+    y.value = withTiming(0, { duration: 250, easing: Easing.out(Easing.exp) });
+    opacity.value = withTiming(1, { duration: 180 });
+    scale.value = withSpring(1, { damping: 16, stiffness: 280 });
   }, []);
 
   const style = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }, { scale: scale.value }],
+    transform: [{ translateY: y.value }, { scale: scale.value }],
     opacity: opacity.value,
   }));
 
@@ -54,323 +84,286 @@ export default function ConversationScreen() {
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const sendScale = useSharedValue(1);
 
-  const loadMessages = useCallback(async () => {
+  const load = useCallback(async () => {
     try {
       const data = await api.getMessages(conversationId);
       setMessages(data);
-    } catch (error) {
-      console.error('Failed to load messages:', error);
-    } finally {
-      setLoading(false);
-    }
+    } catch {}
+    finally { setLoading(false); }
   }, [conversationId]);
 
   useEffect(() => {
-    loadMessages();
+    load();
     api.markConversationRead(conversationId).catch(() => {});
-    pollRef.current = setInterval(loadMessages, 5000);
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [loadMessages, conversationId]);
+    pollRef.current = setInterval(load, 5000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [load, conversationId]);
 
   const handleSend = async () => {
     if (!text.trim() || sending) return;
     const content = text.trim();
     setText('');
     setSending(true);
+    sendScale.value = withSpring(0.88, { damping: 10, stiffness: 400 }, () => {
+      sendScale.value = withSpring(1, { damping: 12, stiffness: 300 });
+    });
     try {
-      const message = await api.sendMessage(conversationId, content);
-      setMessages(prev => [...prev, message]);
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      setText(content); // Restore text on failure
+      const msg = await api.sendMessage(conversationId, content);
+      setMessages(prev => [...prev, msg]);
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
+    } catch {
+      setText(content);
     } finally {
       setSending(false);
     }
   };
 
-  const formatTime = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  const sendBtnStyle = useAnimatedStyle(() => ({ transform: [{ scale: sendScale.value }] }));
 
-  const renderMessage = ({ item, index }: { item: ChatMessage; index: number }) => {
-    const isMine = item.senderId === user?.id;
-    const showAvatar = !isMine && (index === 0 || messages[index - 1].senderId !== item.senderId);
-    const isNewest = index === messages.length - 1;
+  const grouped = messages.reduce<{ type: 'date' | 'msg'; value: ChatMessage | string; key: string }[]>((acc, msg, i) => {
+    const prev = messages[i - 1];
+    const currDate = new Date(msg.createdAt).toDateString();
+    const prevDate = prev ? new Date(prev.createdAt).toDateString() : null;
+    if (currDate !== prevDate) {
+      acc.push({ type: 'date', value: msg.createdAt, key: `date-${msg.id}` });
+    }
+    acc.push({ type: 'msg', value: msg, key: msg.id });
+    return acc;
+  }, []);
 
-    const content = (
-      <View style={[styles.messageRow, isMine ? styles.myRow : styles.theirRow]}>
+  const renderItem = ({ item, index }: { item: typeof grouped[0]; index: number }) => {
+    if (item.type === 'date') {
+      return (
+        <Animated.View entering={FadeIn.duration(300)} style={s.dateHeader}>
+          <Text style={s.dateHeaderText}>{formatDateHeader(item.value as string)}</Text>
+        </Animated.View>
+      );
+    }
+
+    const msg = item.value as ChatMessage;
+    const isMine = msg.senderId === user?.id;
+    const allItems = grouped.filter(g => g.type === 'msg');
+    const msgIndex = allItems.findIndex(g => (g.value as ChatMessage).id === msg.id);
+    const prevMsg = msgIndex > 0 ? (allItems[msgIndex - 1].value as ChatMessage) : null;
+    const nextMsg = msgIndex < allItems.length - 1 ? (allItems[msgIndex + 1].value as ChatMessage) : null;
+    const isFirst = !prevMsg || prevMsg.senderId !== msg.senderId;
+    const isLast = !nextMsg || nextMsg.senderId !== msg.senderId;
+    const isNewest = index === grouped.length - 1;
+
+    const bubble = (
+      <View style={[s.msgRow, isMine ? s.myRow : s.theirRow]}>
         {!isMine && (
-          <View style={styles.avatarSpace}>
-            {showAvatar && (
+          <View style={s.avatarCol}>
+            {isLast && (
               recipientAvatar ? (
-                <Image source={{ uri: recipientAvatar }} style={styles.bubbleAvatar} />
+                <Image source={{ uri: recipientAvatar }} style={s.bubbleAvatar} />
               ) : (
-                <View style={[styles.bubbleAvatar, styles.initialsAvatar]}>
-                  <Text style={styles.bubbleAvatarText}>{getInitials(recipientName)}</Text>
+                <View style={[s.bubbleAvatar, s.bubbleAvatarFallback]}>
+                  <Text style={s.bubbleAvatarText}>{getInitials(recipientName)}</Text>
                 </View>
               )
             )}
           </View>
         )}
-        <View style={[styles.bubbleContainer, isMine ? styles.myContainer : styles.theirContainer]}>
-          <View style={[styles.bubble, isMine ? styles.myBubble : styles.theirBubble]}>
-            <Text style={[styles.messageText, isMine && styles.myMessageText]}>{item.content}</Text>
+        <View style={[s.bubbleCol, isMine ? s.myBubbleCol : s.theirBubbleCol]}>
+          <View style={[
+            s.bubble,
+            isMine ? s.myBubble : s.theirBubble,
+            isMine && isFirst && s.myBubbleFirst,
+            isMine && isLast && s.myBubbleLast,
+            !isMine && isFirst && s.theirBubbleFirst,
+            !isMine && isLast && s.theirBubbleLast,
+          ]}>
+            <Text style={[s.bubbleText, isMine && s.myBubbleText]}>{msg.content}</Text>
           </View>
-          <Text style={styles.timeText}>{formatTime(item.createdAt)}</Text>
+          {isLast && (
+            <Text style={[s.msgTime, isMine ? s.myTime : s.theirTime]}>
+              {isMine ? `${formatTime(msg.createdAt)} · Sent` : formatTime(msg.createdAt)}
+            </Text>
+          )}
         </View>
       </View>
     );
 
-    if (isMine && isNewest) {
-      return <AnimatedBubble key={item.id}>{content}</AnimatedBubble>;
-    }
-
-    return content;
+    return isNewest ? <BubbleIn key={msg.id}>{bubble}</BubbleIn> : bubble;
   };
 
   if (loading && messages.length === 0) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={s.centered}>
+        <ActivityIndicator size="large" color={ACCENT} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={s.root}>
       <StatusBar barStyle="light-content" />
+      <SafeAreaView style={s.header} edges={['top']}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={s.headerBtn}>
+          <Ionicons name="chevron-back" size={24} color={TEXT} />
+        </TouchableOpacity>
+        <TouchableOpacity style={s.headerInfo} activeOpacity={0.8}>
+          {recipientAvatar ? (
+            <Image source={{ uri: recipientAvatar }} style={s.headerAvatar} />
+          ) : (
+            <View style={[s.headerAvatar, s.headerAvatarFallback]}>
+              <Text style={s.headerAvatarText}>{getInitials(recipientName)}</Text>
+            </View>
+          )}
+          <View>
+            <Text style={s.headerName}>{recipientName}</Text>
+            <Text style={s.headerSub}>Active now</Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.headerBtn}>
+          <Ionicons name="ellipsis-horizontal" size={22} color={TEXT2} />
+        </TouchableOpacity>
+      </SafeAreaView>
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        keyboardVerticalOffset={0}
       >
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-            <Ionicons name="chevron-back" size={24} color={COLORS.text} />
-          </TouchableOpacity>
-          
-          <View style={styles.headerInfo}>
-            {recipientAvatar ? (
-              <Image source={{ uri: recipientAvatar }} style={styles.headerAvatar} />
-            ) : (
-              <View style={[styles.headerAvatar, styles.initialsAvatar]}>
-                <Text style={styles.headerAvatarText}>{getInitials(recipientName)}</Text>
-              </View>
-            )}
-            <Text style={styles.headerName}>{recipientName}</Text>
-          </View>
-          
-          <TouchableOpacity style={styles.headerBtn}>
-            <Ionicons name="ellipsis-horizontal" size={22} color={COLORS.textSecondary} />
-          </TouchableOpacity>
-        </View>
-
         <FlatList
           ref={flatListRef}
-          data={messages}
-          keyExtractor={item => item.id}
-          renderItem={renderMessage}
-          contentContainerStyle={styles.messagesList}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          data={grouped}
+          keyExtractor={item => item.key}
+          renderItem={renderItem}
+          contentContainerStyle={s.list}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
           showsVerticalScrollIndicator={false}
         />
 
-        <View style={styles.inputArea}>
-          <View style={styles.inputContainer}>
+        <SafeAreaView style={s.inputArea} edges={['bottom']}>
+          <View style={[s.inputContainer, inputFocused && s.inputContainerFocused]}>
             <TextInput
-              style={styles.input}
+              style={s.input}
               placeholder="Message..."
-              placeholderTextColor={COLORS.textTertiary}
+              placeholderTextColor={TEXT3}
               value={text}
               onChangeText={setText}
               multiline
               maxLength={2000}
+              onFocus={() => setInputFocused(true)}
+              onBlur={() => setInputFocused(false)}
+              onSubmitEditing={handleSend}
             />
-            <TouchableOpacity
-              style={[styles.sendBtn, (!text.trim() || sending) && styles.sendBtnDisabled]}
-              onPress={handleSend}
-              disabled={!text.trim() || sending}
-            >
-              {sending ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Ionicons name="arrow-up" size={22} color="#fff" />
-              )}
-            </TouchableOpacity>
+            <Animated.View style={sendBtnStyle}>
+              <TouchableOpacity
+                style={[s.sendBtn, (!text.trim() || sending) && s.sendBtnOff]}
+                onPress={handleSend}
+                disabled={!text.trim() || sending}
+              >
+                {sending ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="arrow-up" size={20} color="#fff" />
+                )}
+              </TouchableOpacity>
+            </Animated.View>
           </View>
-        </View>
+        </SafeAreaView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: BG },
+  centered: { flex: 1, backgroundColor: BG, justifyContent: 'center', alignItems: 'center' },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.background,
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: BORDER,
   },
-  headerBtn: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  headerAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-  },
-  headerAvatarText: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  headerName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-  },
-  messagesList: {
-    padding: 16,
-    paddingBottom: 24,
-  },
-  messageRow: {
-    flexDirection: 'row',
-    marginBottom: 12,
-    gap: 8,
-  },
-  myRow: {
-    justifyContent: 'flex-end',
-  },
-  theirRow: {
-    justifyContent: 'flex-start',
-  },
-  avatarSpace: {
-    width: 32,
-    justifyContent: 'flex-end',
-  },
-  bubbleAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
-  initialsAvatar: {
-    backgroundColor: COLORS.cardBackground,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  bubbleAvatarText: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    fontWeight: '700',
-  },
-  bubbleContainer: {
-    maxWidth: '80%',
-  },
-  myContainer: {
-    alignItems: 'flex-end',
-  },
-  theirContainer: {
-    alignItems: 'flex-start',
-  },
-  bubble: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  myBubble: {
-    backgroundColor: COLORS.primary,
-    borderBottomRightRadius: 4,
-  },
-  theirBubble: {
-    backgroundColor: COLORS.cardBackground,
-    borderBottomLeftRadius: 4,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  messageText: {
-    fontSize: 15,
-    lineHeight: 20,
-    color: COLORS.text,
-  },
-  myMessageText: {
-    color: '#fff',
-  },
-  timeText: {
-    fontSize: 10,
-    color: COLORS.textTertiary,
-    marginTop: 4,
-    marginHorizontal: 4,
-  },
+  headerBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+  headerInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerAvatar: { width: 38, height: 38, borderRadius: 19 },
+  headerAvatarFallback: { backgroundColor: CARD, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: BORDER },
+  headerAvatarText: { fontSize: 14, fontWeight: '700', color: TEXT },
+  headerName: { fontSize: 15, fontWeight: '700', color: TEXT },
+  headerSub: { fontSize: 11, color: '#2ecc71', fontWeight: '600', marginTop: 1 },
+
+  list: { paddingHorizontal: 12, paddingTop: 16, paddingBottom: 12 },
+
+  dateHeader: { alignItems: 'center', marginVertical: 16 },
+  dateHeaderText: { fontSize: 12, color: TEXT3, fontWeight: '600', letterSpacing: 0.3 },
+
+  msgRow: { flexDirection: 'row', marginBottom: 2, alignItems: 'flex-end', gap: 6 },
+  myRow: { justifyContent: 'flex-end' },
+  theirRow: { justifyContent: 'flex-start' },
+
+  avatarCol: { width: 28, alignItems: 'flex-end' },
+  bubbleAvatar: { width: 28, height: 28, borderRadius: 14 },
+  bubbleAvatarFallback: { backgroundColor: CARD, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: BORDER },
+  bubbleAvatarText: { fontSize: 10, fontWeight: '700', color: TEXT },
+
+  bubbleCol: { maxWidth: '72%' },
+  myBubbleCol: { alignItems: 'flex-end' },
+  theirBubbleCol: { alignItems: 'flex-start' },
+
+  bubble: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20 },
+  myBubble: { backgroundColor: ACCENT },
+  theirBubble: { backgroundColor: CARD, borderWidth: 1, borderColor: BORDER },
+  myBubbleFirst: { borderTopRightRadius: 20 },
+  myBubbleLast: { borderBottomRightRadius: 6 },
+  theirBubbleFirst: { borderTopLeftRadius: 20 },
+  theirBubbleLast: { borderBottomLeftRadius: 6 },
+
+  bubbleText: { fontSize: 15, lineHeight: 21, color: TEXT2 },
+  myBubbleText: { color: '#fff' },
+
+  msgTime: { fontSize: 10, marginTop: 4, marginHorizontal: 4 },
+  myTime: { color: TEXT3, textAlign: 'right' },
+  theirTime: { color: TEXT3 },
+
   inputArea: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 8 : 16,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    backgroundColor: COLORS.background,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: BORDER,
+    backgroundColor: BG,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 6,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: COLORS.cardBackground,
-    borderRadius: 24,
-    paddingHorizontal: 12,
+    backgroundColor: CARD,
+    borderRadius: 26,
+    paddingHorizontal: 14,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: BORDER,
     gap: 8,
   },
+  inputContainerFocused: { borderColor: 'rgba(231,76,60,0.4)' },
   input: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 38,
     maxHeight: 120,
-    paddingHorizontal: 8,
     paddingVertical: 8,
     fontSize: 15,
-    color: COLORS.text,
+    color: TEXT,
   },
   sendBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.primary,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: ACCENT,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  sendBtnDisabled: {
-    backgroundColor: COLORS.textTertiary,
-    opacity: 0.5,
-  },
+  sendBtnOff: { backgroundColor: '#333', opacity: 0.5 },
 });
