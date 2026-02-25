@@ -35,10 +35,7 @@ const upload = multer({
 const router = Router();
 
 router.post('/', authenticateToken, (req: AuthRequest, res: Response, next: any) => {
-  upload.single('certification')(req as any, res as any, (err: any) => {
-    if (err) {
-      return res.status(400).json({ error: err.message || 'File upload failed' });
-    }
+  upload.single('certification')(req as any, res as any, (_err: any) => {
     next();
   });
 }, async (req: AuthRequest, res: Response) => {

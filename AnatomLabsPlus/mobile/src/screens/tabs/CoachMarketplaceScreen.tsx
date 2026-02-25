@@ -356,7 +356,6 @@ export default function CoachMarketplaceScreen() {
 
   const submitApply = async () => {
     if (!applySpec || !applyExp || !applyBio) return Alert.alert('Required', 'Please fill all mandatory fields');
-    if (!applyPdfUri) return Alert.alert('Required', 'Please upload your certification PDF');
     setApplySubmitting(true);
     try {
       const fd = new FormData();
