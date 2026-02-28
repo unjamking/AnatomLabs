@@ -2,7 +2,7 @@ services:
   - type: web
     name: anatomlabs-backend
     runtime: node
-    rootDir: .
+    rootDir: backend
     buildCommand: npm install --include=dev && npm run build && npx prisma generate
     startCommand: bash scripts/start.sh
     healthCheckPath: /health
