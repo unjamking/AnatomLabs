@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+npx prisma db push --accept-data-loss
+
 npx prisma migrate resolve --applied 20260122203428_init 2>/dev/null || true
 npx prisma migrate resolve --applied 20260128093409_init 2>/dev/null || true
 npx prisma migrate resolve --applied 20260129124333_nutrition_tracking 2>/dev/null || true
