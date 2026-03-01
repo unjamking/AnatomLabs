@@ -7,7 +7,7 @@
     "dev": "nodemon src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "deploy": "prisma migrate resolve --rolled-back 20260219153212_add_user_relations_to_social_models; prisma migrate resolve --applied 20260219153212_add_user_relations_to_social_models; prisma migrate resolve --applied 20260223140451_add_coach_reviews; prisma migrate resolve --applied 20260223150417_add_comment_likes; prisma migrate resolve --applied 20260227150656_add_certification_pdf_data; prisma migrate deploy && node dist/server.js",
+    "deploy": "prisma db push --accept-data-loss && node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
