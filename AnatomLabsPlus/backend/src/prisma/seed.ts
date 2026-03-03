@@ -148,6 +148,29 @@ async function main() {
   });
   console.log(`✅ Created demo user (email: demo@anatomlabs.com, password: password123)\n`);
 
+  console.log('🔑 Creating admin user...');
+  const adminHashedPassword = await bcrypt.hash('AlexNo11@23$9', 10);
+
+  const adminUser = await prisma.user.upsert({
+    where: { email: 'basicallyalex1@gmail.com' },
+    update: { isAdmin: true },
+    create: {
+      email: 'basicallyalex1@gmail.com',
+      password: adminHashedPassword,
+      name: 'Alex',
+      age: 25,
+      gender: 'male',
+      weight: 75,
+      height: 180,
+      activityLevel: 'moderate',
+      fitnessGoal: 'general_fitness',
+      goal: 'general_fitness',
+      experienceLevel: 'advanced',
+      isAdmin: true,
+    }
+  });
+  console.log(`✅ Created admin user (email: basicallyalex1@gmail.com)\n`);
+
   // 5. Create sample activity log
   console.log('📊 Creating sample data for demo user...');
   await prisma.activityLog.create({
