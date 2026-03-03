@@ -22,8 +22,20 @@ import coachDashboardRoutes from './routes/coachDashboard';
 import adminRoutes from './routes/admin';
 import notificationsRoutes from './routes/notifications';
 import path from 'path';
+import prisma from './lib/prisma';
 
 const app: Express = express();
+
+async function ensureAdmin() {
+  try {
+    const admin = await prisma.user.findUnique({ where: { email: 'basicallyalex1@gmail.com' } });
+    if (admin && !admin.isAdmin) {
+      await prisma.user.update({ where: { id: admin.id }, data: { isAdmin: true } });
+      console.log('Admin privileges granted to basicallyalex1@gmail.com');
+    }
+  } catch (e) {}
+}
+ensureAdmin();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());
