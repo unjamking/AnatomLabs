@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { containsInappropriateContent, getContentError } from '../services/contentFilter';
+import { createNotification } from '../services/notifications';
 
 const router = Router();
 
@@ -203,6 +204,26 @@ router.post('/conversations/:id/messages', authenticateToken, async (req: AuthRe
         data: { lastReadAt: new Date() },
       }),
     ]);
+
+    const recipients = await prisma.conversationParticipant.findMany({
+      where: { conversationId: id, userId: { not: userId } },
+      select: { userId: true },
+    });
+
+    const sender = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    });
+
+    for (const recipient of recipients) {
+      createNotification(
+        recipient.userId,
+        'MESSAGE',
+        `New message from ${sender?.name || 'Someone'}`,
+        content.trim().substring(0, 100),
+        { conversationId: id, senderId: userId }
+      );
+    }
 
     res.status(201).json(message);
   } catch (error) {

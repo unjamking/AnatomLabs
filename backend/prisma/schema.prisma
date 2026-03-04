@@ -18,6 +18,10 @@ model User {
   password  String
   name      String
   avatar    String?
+  pushToken         String?
+  emailVerified     Boolean  @default(false)
+  verificationCode  String?
+  verificationExpiry DateTime?
 
   // Physical attributes for calculations
   age       Int?
@@ -73,6 +77,8 @@ model User {
   postCommentLikes    CoachPostCommentLike[]
   coachReviews        CoachReview[]
   notifications    Notification[]
+  customExercises  CustomExercise[]
+  dietPlans        DietPlan[]
 
   @@map("users")
 }
@@ -800,10 +806,45 @@ model Message {
   @@map("messages")
 }
 
+model CustomExercise {
+  id            String   @id @default(uuid())
+  userId        String
+  name          String
+  muscleGroup   String
+  equipment     String   @default("none")
+  instructions  String?  @db.Text
+  notes         String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@map("custom_exercises")
+}
+
+model DietPlan {
+  id             String   @id @default(uuid())
+  userId         String
+  name           String
+  targetCalories Int
+  targetProtein  Float
+  targetCarbs    Float
+  targetFat      Float
+  meals          Json
+  preferences    Json?
+  createdAt      DateTime @default(now())
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("diet_plans")
+}
+
 model Notification {
   id        String   @id @default(uuid())
   userId    String
-  type      String   // FOLLOW, BOOKING_REQUEST, BOOKING_CONFIRMED, BOOKING_CANCELLED, SYSTEM
+  type      String   // FOLLOW, BOOKING_REQUEST, BOOKING_CONFIRMED, BOOKING_CANCELLED, MESSAGE, SYSTEM
   title     String
   content   String   @db.Text
   data      Json?    // { bookingId, coachId, postId, etc }

@@ -1,9 +1,10 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import prisma from '../lib/prisma';
-import { generateToken } from '../middleware/auth';
+import { generateToken, authenticateToken, AuthRequest } from '../middleware/auth';
 import { analyzeBMI, canCalculateBMI } from '../services/bmiCalculator';
 import { containsInappropriateContent, getContentError } from '../services/contentFilter';
+import { generateVerificationCode, sendVerificationEmail, sendPasswordResetEmail } from '../services/emailService';
 
 const router = Router();
 
@@ -73,6 +74,9 @@ router.post('/register', async (req: Request, res: Response) => {
       (foodAllergies && foodAllergies.length > 0) ||
       (dietaryPreferences && dietaryPreferences.length > 0);
 
+    const verificationCode = generateVerificationCode();
+    const verificationExpiry = new Date(Date.now() + 15 * 60 * 1000);
+
     const user = await prisma.user.create({
       data: {
         email,
@@ -90,7 +94,9 @@ router.post('/register', async (req: Request, res: Response) => {
         physicalLimitations: validateArray(physicalLimitations),
         foodAllergies: validateArray(foodAllergies),
         dietaryPreferences: validateArray(dietaryPreferences),
-        healthProfileComplete: hasHealthProfile
+        healthProfileComplete: hasHealthProfile,
+        verificationCode,
+        verificationExpiry,
       },
       select: {
         id: true,
@@ -112,9 +118,12 @@ router.post('/register', async (req: Request, res: Response) => {
         healthProfileComplete: true,
         isAdmin: true,
         isCoach: true,
+        emailVerified: true,
         createdAt: true,
       }
     });
+
+    sendVerificationEmail(email, verificationCode, name).catch(() => {});
 
     const token = generateToken(user.id);
 
@@ -125,6 +134,163 @@ router.post('/register', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/verify-email', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { code } = req.body;
+    const userId = req.userId!;
+
+    if (!code) {
+      return res.status(400).json({ error: 'Verification code is required' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { verificationCode: true, verificationExpiry: true, emailVerified: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.emailVerified) {
+      return res.json({ message: 'Email already verified' });
+    }
+
+    if (!user.verificationCode || !user.verificationExpiry) {
+      return res.status(400).json({ error: 'No verification code found. Request a new one.' });
+    }
+
+    if (new Date() > user.verificationExpiry) {
+      return res.status(400).json({ error: 'Verification code expired. Request a new one.' });
+    }
+
+    if (user.verificationCode !== code) {
+      return res.status(400).json({ error: 'Invalid verification code' });
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { emailVerified: true, verificationCode: null, verificationExpiry: null },
+    });
+
+    res.json({ message: 'Email verified successfully' });
+  } catch (error) {
+    console.error('Verify email error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/resend-verification', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true, emailVerified: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.emailVerified) {
+      return res.json({ message: 'Email already verified' });
+    }
+
+    const verificationCode = generateVerificationCode();
+    const verificationExpiry = new Date(Date.now() + 15 * 60 * 1000);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { verificationCode, verificationExpiry },
+    });
+
+    const sent = await sendVerificationEmail(user.email, verificationCode, user.name);
+
+    res.json({ message: sent ? 'Verification code sent' : 'Email service unavailable, try again later' });
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, name: true, email: true },
+    });
+
+    if (!user) {
+      return res.json({ message: 'If an account exists with that email, a reset code has been sent.' });
+    }
+
+    const resetCode = generateVerificationCode();
+    const resetExpiry = new Date(Date.now() + 15 * 60 * 1000);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { verificationCode: resetCode, verificationExpiry: resetExpiry },
+    });
+
+    await sendPasswordResetEmail(user.email, resetCode, user.name);
+
+    res.json({ message: 'If an account exists with that email, a reset code has been sent.' });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/reset-password', async (req: Request, res: Response) => {
+  try {
+    const { email, code, newPassword } = req.body;
+
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ error: 'Email, code, and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, verificationCode: true, verificationExpiry: true },
+    });
+
+    if (!user || !user.verificationCode || !user.verificationExpiry) {
+      return res.status(400).json({ error: 'Invalid or expired reset code' });
+    }
+
+    if (new Date() > user.verificationExpiry) {
+      return res.status(400).json({ error: 'Reset code expired. Request a new one.' });
+    }
+
+    if (user.verificationCode !== code) {
+      return res.status(400).json({ error: 'Invalid reset code' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword, verificationCode: null, verificationExpiry: null },
+    });
+
+    res.json({ message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Reset password error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -153,11 +319,11 @@ router.post('/login', async (req: Request, res: Response) => {
 
     const token = generateToken(user.id);
 
-    const { password: _, ...userWithoutPassword } = user;
+    const { password: _, verificationCode: _vc, verificationExpiry: _ve, ...userWithoutSensitive } = user;
 
     res.status(200).json({
       message: 'Login successful',
-      user: userWithoutPassword,
+      user: userWithoutSensitive,
       token
     });
   } catch (error) {

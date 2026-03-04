@@ -19,6 +19,19 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   }
 });
 
+router.get('/unread-count', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const count = await prisma.notification.count({
+      where: { userId: req.userId!, read: false },
+    });
+
+    res.json({ count });
+  } catch (error) {
+    console.error('Error fetching unread count:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.put('/:id/read', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const notification = await prisma.notification.findUnique({
@@ -51,6 +64,40 @@ router.post('/read-all', authenticateToken, async (req: AuthRequest, res: Respon
     res.json({ message: 'All notifications marked as read' });
   } catch (error) {
     console.error('Error marking all notifications as read:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/push-token', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Push token is required' });
+    }
+
+    await prisma.user.update({
+      where: { id: req.userId! },
+      data: { pushToken: token },
+    });
+
+    res.json({ message: 'Push token registered' });
+  } catch (error) {
+    console.error('Error registering push token:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.delete('/push-token', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    await prisma.user.update({
+      where: { id: req.userId! },
+      data: { pushToken: null },
+    });
+
+    res.json({ message: 'Push token removed' });
+  } catch (error) {
+    console.error('Error removing push token:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

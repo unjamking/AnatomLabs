@@ -21,6 +21,8 @@ import messagesRoutes from './routes/messages';
 import coachDashboardRoutes from './routes/coachDashboard';
 import adminRoutes from './routes/admin';
 import notificationsRoutes from './routes/notifications';
+import customExercisesRoutes from './routes/customExercises';
+import dietPlansRoutes from './routes/dietPlans';
 import path from 'path';
 import prisma from './lib/prisma';
 
@@ -64,6 +66,8 @@ app.use('/api/messages', messagesRoutes);
 app.use('/api/coach-dashboard', coachDashboardRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/custom-exercises', customExercisesRoutes);
+app.use('/api/diet-plans', dietPlansRoutes);
 
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
