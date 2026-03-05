@@ -243,7 +243,9 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       data: { verificationCode: resetCode, verificationExpiry: resetExpiry },
     });
 
-    await sendPasswordResetEmail(user.email, resetCode, user.name);
+    sendPasswordResetEmail(user.email, resetCode, user.name).catch(err =>
+      console.error('Failed to send reset email:', err)
+    );
 
     res.json({ message: 'If an account exists with that email, a reset code has been sent.' });
   } catch (error) {
