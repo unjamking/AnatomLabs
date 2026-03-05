@@ -12,7 +12,20 @@ router.get('/test-email', async (_req: Request, res: Response) => {
   const hasUser = !!process.env.EMAIL_USER;
   const hasPass = !!process.env.EMAIL_PASS;
   const passLen = process.env.EMAIL_PASS?.length || 0;
-  res.json({ hasUser, hasPass, passLen, emailUser: process.env.EMAIL_USER });
+  try {
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+    await transporter.verify();
+    res.json({ hasUser, hasPass, passLen, smtp: 'connected' });
+  } catch (err: any) {
+    res.json({ hasUser, hasPass, passLen, smtp: 'failed', error: err.message });
+  }
 });
 
 
@@ -251,12 +264,9 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       data: { verificationCode: resetCode, verificationExpiry: resetExpiry },
     });
 
-    try {
-      await sendPasswordResetEmail(user.email, resetCode, user.name);
-      console.log('Reset email sent successfully to:', user.email);
-    } catch (emailErr) {
-      console.error('Reset email failed:', emailErr);
-    }
+    sendPasswordResetEmail(user.email, resetCode, user.name).catch(err =>
+      console.error('Failed to send reset email:', err)
+    );
 
     res.json({ message: 'If an account exists with that email, a reset code has been sent.' });
   } catch (error) {
