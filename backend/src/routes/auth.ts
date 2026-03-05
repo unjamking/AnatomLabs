@@ -8,6 +8,14 @@ import { generateVerificationCode, sendVerificationEmail, sendPasswordResetEmail
 
 const router = Router();
 
+router.get('/test-email', async (_req: Request, res: Response) => {
+  const hasUser = !!process.env.EMAIL_USER;
+  const hasPass = !!process.env.EMAIL_PASS;
+  const passLen = process.env.EMAIL_PASS?.length || 0;
+  res.json({ hasUser, hasPass, passLen, emailUser: process.env.EMAIL_USER });
+});
+
+
 router.post('/register', async (req: Request, res: Response) => {
   try {
     const {
@@ -243,9 +251,12 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       data: { verificationCode: resetCode, verificationExpiry: resetExpiry },
     });
 
-    sendPasswordResetEmail(user.email, resetCode, user.name).catch(err =>
-      console.error('Failed to send reset email:', err)
-    );
+    try {
+      await sendPasswordResetEmail(user.email, resetCode, user.name);
+      console.log('Reset email sent successfully to:', user.email);
+    } catch (emailErr) {
+      console.error('Reset email failed:', emailErr);
+    }
 
     res.json({ message: 'If an account exists with that email, a reset code has been sent.' });
   } catch (error) {
