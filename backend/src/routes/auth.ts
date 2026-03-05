@@ -16,12 +16,17 @@ router.get('/test-email', async (_req: Request, res: Response) => {
     const nodemailer = require('nodemailer');
     const transporter = nodemailer.createTransport({
       service: 'gmail',
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
     });
-    await transporter.verify();
+    await Promise.race([
+      transporter.verify(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP timeout after 10s')), 10000))
+    ]);
     res.json({ hasUser, hasPass, passLen, smtp: 'connected' });
   } catch (err: any) {
     res.json({ hasUser, hasPass, passLen, smtp: 'failed', error: err.message });
