@@ -7,7 +7,7 @@
     "dev": "nodemon src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "deploy": "prisma migrate resolve --applied 20260122203428_init; prisma migrate resolve --applied 20260128093409_init; prisma migrate resolve --applied 20260129124333_nutrition_tracking; prisma migrate resolve --applied 20260130140239_add_micronutrients_to_food_and_nutrition_log; prisma migrate resolve --applied 20260203135409_add_workout_sessions; prisma migrate resolve --applied 20260203231746_add_health_profile; prisma migrate resolve --applied 20260204095021_add_activity_tracking_fields; prisma migrate resolve --applied 20260211230741_add_biomarker_report_share_insight_models; prisma migrate resolve --applied 20260213070920_add_coach_system; prisma migrate resolve --applied 20260213143158_add_user_ban_field; prisma migrate resolve --applied 20260219153212_add_user_relations_to_social_models; prisma migrate resolve --applied 20260223140451_add_coach_reviews; prisma migrate resolve --applied 20260223150417_add_comment_likes; prisma migrate resolve --applied 20260227150656_add_certification_pdf_data; prisma migrate resolve --applied 20260303161200_add_push_token; prisma migrate resolve --applied 20260303180350_add_email_verification; prisma migrate resolve --applied 20260303180409_add_custom_exercises_and_diet_plans; prisma migrate deploy && node dist/server.js",
+    "deploy": "prisma db push && node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
