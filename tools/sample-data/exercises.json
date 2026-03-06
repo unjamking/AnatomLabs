@@ -1,0 +1,104 @@
+[
+  {
+    "name": "Barbell Bench Press",
+    "category": "strength",
+    "difficulty": "intermediate",
+    "equipment": "barbell",
+    "description": "Compound pressing movement performed lying on a bench, lowering barbell to chest and pressing upward.",
+    "instructions": "1. Lie on bench with eyes under bar\n2. Grip bar slightly wider than shoulders\n3. Unrack and lower with control to mid-chest\n4. Press up explosively until arms extended\n5. Maintain 5-point contact (head, shoulders, glutes on bench, both feet on floor)",
+    "sportTags": ["general", "football", "boxing"],
+    "mechanicalLoad": "Horizontal pressing pattern. Force vector directed perpendicular to torso. Load distributed across pectorals, anterior deltoids, and triceps. Moment arm longest at 90° elbow flexion (sticking point). Scapular retraction creates stable platform for force transfer.",
+    "jointInvolvement": "Primary: glenohumeral (shoulder) flexion/extension, elbow extension. Secondary: scapular protraction/retraction. Proper form requires scapular stability throughout movement.",
+    "primaryMuscles": [
+      {"muscle": "Pectoralis Major", "activationRank": 1, "explanation": "Prime mover. Sternal and clavicular heads work together to horizontally adduct humerus. Greatest activation in mid-range (bar at chest level)."},
+      {"muscle": "Anterior Deltoid", "activationRank": 2, "explanation": "Assists in shoulder flexion and horizontal adduction. Most active in bottom portion of press."},
+      {"muscle": "Triceps Brachii", "activationRank": 3, "explanation": "Responsible for elbow extension during lockout phase. Becomes primary mover in top third of movement."}
+    ]
+  },
+  {
+    "name": "Barbell Back Squat",
+    "category": "strength",
+    "difficulty": "advanced",
+    "equipment": "barbell",
+    "description": "Fundamental lower body compound movement. Bar placed on upper back, descending into squat position and standing back up.",
+    "instructions": "1. Position bar on upper traps\n2. Hands grip bar outside shoulders\n3. Unrack and step back, feet shoulder-width\n4. Descend by breaking at hips and knees simultaneously\n5. Maintain neutral spine, chest up, knees tracking over toes\n6. Descend until thighs parallel or below\n7. Drive through midfoot to return to standing",
+    "sportTags": ["general", "football", "basketball", "volleyball"],
+    "mechanicalLoad": "Vertical loading pattern creating compressive force through spine. Center of mass must remain over midfoot. Requires mobility in ankles, hips, and thoracic spine. Moment arms at hip and knee joints simultaneously, creating high metabolic demand. Bar path should be straight vertical line.",
+    "jointInvolvement": "Primary: hip extension, knee extension, ankle dorsiflexion. Requires coordinated triple extension. Core musculature isometrically contracts to maintain spinal position under load.",
+    "primaryMuscles": [
+      {"muscle": "Quadriceps", "activationRank": 1, "explanation": "Primary knee extensors. Greatest activation during concentric phase (standing up). All four heads engaged with rectus femoris also assisting at hip."},
+      {"muscle": "Gluteus Maximus", "activationRank": 1, "explanation": "Primary hip extensor. Peak activation in bottom position and during drive out of hole. Critical for maintaining upright torso position."},
+      {"muscle": "Hamstrings", "activationRank": 3, "explanation": "Assist glutes in hip extension. Also act as dynamic stabilizers of knee joint during movement."},
+      {"muscle": "Erector Spinae", "activationRank": 4, "explanation": "Isometrically contract to maintain neutral spine position under load. Prevent spinal flexion throughout movement."}
+    ]
+  },
+  {
+    "name": "Deadlift",
+    "category": "strength",
+    "difficulty": "advanced",
+    "equipment": "barbell",
+    "description": "Total body compound movement. Lifting barbell from floor to standing position through hip and knee extension.",
+    "instructions": "1. Stand with midfoot under bar, shins nearly touching\n2. Bend over and grip bar just outside legs\n3. Bend knees until shins touch bar\n4. Lift chest, straighten back (neutral spine)\n5. Pull bar off floor by extending hips and knees\n6. Keep bar close to body throughout\n7. Stand tall with hips and knees fully extended\n8. Lower with control by pushing hips back first",
+    "sportTags": ["general", "football"],
+    "mechanicalLoad": "Vertical pull against gravity. Bar must travel in straight vertical line close to body. Large moment arm at hip creates high torque requirement from posterior chain. Grip is often limiting factor. Total body tension required - generates force from ground through kinetic chain.",
+    "jointInvolvement": "Primary: hip extension, knee extension. Secondary: spinal extension (isometric), shoulder girdle retraction (isometric), grip (isometric). Teaches full-body force production and tension.",
+    "primaryMuscles": [
+      {"muscle": "Erector Spinae", "activationRank": 1, "explanation": "Isometrically maintain spinal position against flexion moment created by bar. Highest activation of any deadlift variation."},
+      {"muscle": "Gluteus Maximus", "activationRank": 1, "explanation": "Primary hip extensor. Generates majority of force to lift bar. Most active from floor to mid-thigh."},
+      {"muscle": "Hamstrings", "activationRank": 2, "explanation": "Assist glutes in hip extension. Lengthen eccentrically during setup, contract concentrically during lift."},
+      {"muscle": "Quadriceps", "activationRank": 3, "explanation": "Extend knee to initiate lift. More active in conventional than sumo stance. Critical in first few inches off floor."},
+      {"muscle": "Latissimus Dorsi", "activationRank": 4, "explanation": "Keep bar close to body through isometric contraction. Prevent bar drifting forward."}
+    ]
+  },
+  {
+    "name": "Pull-Up",
+    "category": "strength",
+    "difficulty": "intermediate",
+    "equipment": "pull-up bar",
+    "description": "Vertical pulling movement using bodyweight. Hanging from bar, pulling body upward until chin clears bar.",
+    "instructions": "1. Grip bar with palms facing away, hands shoulder-width\n2. Hang with arms fully extended\n3. Engage lats and pull scapulae down and together\n4. Pull body upward by driving elbows toward hips\n5. Continue until chin clears bar\n6. Lower with control to full extension",
+    "sportTags": ["general", "basketball", "volleyball"],
+    "mechanicalLoad": "Vertical pull moving body mass against gravity. Resistance constant throughout (bodyweight). Requires high relative strength. Moment arm longest at 90° elbow flexion. Requires shoulder and scapular mobility.",
+    "jointInvolvement": "Primary: shoulder extension, elbow flexion, scapular depression. Requires coordinated movement between glenohumeral joint and scapulothoracic articulation.",
+    "primaryMuscles": [
+      {"muscle": "Latissimus Dorsi", "activationRank": 1, "explanation": "Prime mover in shoulder extension. Pulls arms from overhead to sides. Peak activation at mid-range when elbows at 90°."},
+      {"muscle": "Biceps Brachii", "activationRank": 2, "explanation": "Primary elbow flexor. More active than in other back exercises due to supinated grip option. Works synergistically with brachialis."},
+      {"muscle": "Trapezius", "activationRank": 3, "explanation": "Middle and lower fibers depress and retract scapulae. Critical for proper form and shoulder health."},
+      {"muscle": "Rhomboids", "activationRank": 4, "explanation": "Retract scapulae and work with traps. Important for maintaining shoulder stability during movement."}
+    ]
+  },
+  {
+    "name": "Overhead Press",
+    "category": "strength",
+    "difficulty": "intermediate",
+    "equipment": "barbell",
+    "description": "Vertical pressing movement. Starting from shoulders, pressing barbell overhead to lockout.",
+    "instructions": "1. Start with bar at collarbone, elbows slightly forward\n2. Grip slightly wider than shoulders\n3. Brace core, squeeze glutes\n4. Press bar straight up, moving head back slightly\n5. Once bar clears head, press up and slightly back\n6. Lock out with bar over midfoot\n7. Lower with control to starting position",
+    "sportTags": ["general", "volleyball", "swimming"],
+    "mechanicalLoad": "Vertical press against gravity. Requires full kinetic chain - force generated from ground through legs, transferred through core, expressed through shoulders. Bar path must be vertical. Any forward drift increases moment arm and difficulty.",
+    "jointInvolvement": "Primary: shoulder abduction and flexion, elbow extension. Secondary: scapular upward rotation. Core stability critical - prevents excessive lumbar extension.",
+    "primaryMuscles": [
+      {"muscle": "Deltoids", "activationRank": 1, "explanation": "All three heads active. Anterior most active. Responsible for shoulder flexion and abduction during press. Peak activation from shoulder height to lockout."},
+      {"muscle": "Triceps Brachii", "activationRank": 2, "explanation": "Extend elbow during lockout phase. Long head particularly active due to overhead position placing shoulder in flexion."},
+      {"muscle": "Upper Trapezius", "activationRank": 3, "explanation": "Elevates scapula and rotates it upward. Allows arm to achieve full overhead position safely."},
+      {"muscle": "Serratus Anterior", "activationRank": 4, "explanation": "Protracts and upwardly rotates scapula. Critical for shoulder health and achieving lockout position."}
+    ]
+  },
+  {
+    "name": "Romanian Deadlift",
+    "category": "strength",
+    "difficulty": "intermediate",
+    "equipment": "barbell",
+    "description": "Hip-hinge movement emphasizing posterior chain. Lowering bar down front of legs while maintaining slight knee bend.",
+    "instructions": "1. Start standing with bar at hip height\n2. Soft bend in knees (15-20°)\n3. Push hips back while maintaining neutral spine\n4. Lower bar down front of legs, feeling stretch in hamstrings\n5. Descend until hamstrings reach end range (typically mid-shin)\n6. Reverse movement by driving hips forward\n7. Squeeze glutes at top",
+    "sportTags": ["general", "football", "basketball"],
+    "mechanicalLoad": "Hip-dominant pattern with minimal knee movement. Creates maximum stretch on hamstrings while maintaining tension. Eccentric loading particularly important - muscles lengthen under tension. Moment arm at hip remains long throughout, creating continuous tension.",
+    "jointInvolvement": "Primary: hip flexion (eccentric) and extension (concentric). Minimal knee movement. Spine maintains isometric neutral position. Ankles remain stable.",
+    "primaryMuscles": [
+      {"muscle": "Hamstrings", "activationRank": 1, "explanation": "Primary target. Lengthen eccentrically during descent, maximizing stretch at bottom. Contract concentrically to return to standing. One of best exercises for hamstring hypertrophy."},
+      {"muscle": "Gluteus Maximus", "activationRank": 2, "explanation": "Primary hip extensor during concentric phase. Squeezing glutes at top maximizes activation. Works synergistically with hamstrings."},
+      {"muscle": "Erector Spinae", "activationRank": 3, "explanation": "Maintain neutral spine position isometrically throughout movement. Prevent spinal flexion under load."},
+      {"muscle": "Forearms", "activationRank": 4, "explanation": "Grip strength to hold bar throughout set. Often limiting factor in higher rep ranges."}
+    ]
+  }
+]

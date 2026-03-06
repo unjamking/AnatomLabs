@@ -1,0 +1,75 @@
+{
+  "expo": {
+    "name": "AnatomLabs+",
+    "slug": "anatomlabs-plus",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a0a"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "anatomlabsplus.com",
+      "entitlements": {
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.access": []
+      },
+      "infoPlist": {
+        "NSCameraUsageDescription": "AnatomLabs+ needs camera access to scan food barcodes and nutrition labels for easy food logging.",
+        "NSMotionUsageDescription": "AnatomLabs+ uses motion data to count your steps and track physical activity.",
+        "NSHealthShareUsageDescription": "AnatomLabs+ reads your health data to track steps, calories burned, distance walked, and workout activities.",
+        "NSHealthUpdateUsageDescription": "AnatomLabs+ saves your workout data and activity to Apple Health.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0a0a0a"
+      },
+      "package": "com.anatomlabs.plus",
+      "permissions": [
+        "CAMERA",
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "./plugins/withPickerFix",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow AnatomLabs+ to access your camera to scan food barcodes."
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Allow AnatomLabs+ to access motion data to track your steps."
+        }
+      ],
+      "react-native-health-connect"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "10bb44be-5518-45a6-a955-de57a1f615af"
+      }
+    }
+  }
+}
