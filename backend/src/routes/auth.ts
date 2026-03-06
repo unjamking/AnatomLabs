@@ -9,10 +9,10 @@ import { generateVerificationCode, sendVerificationEmail, sendPasswordResetEmail
 const router = Router();
 
 router.get('/test-email', async (req: Request, res: Response) => {
-  const hasKey = !!process.env.RESEND_API_KEY;
+  const hasKey = !!process.env.BREVO_API_KEY;
   const testTo = req.query.to as string;
   if (!testTo) {
-    return res.json({ hasKey, provider: 'resend', usage: 'add ?to=your@email.com to send test' });
+    return res.json({ hasKey, provider: 'brevo', usage: 'add ?to=your@email.com to send test' });
   }
   try {
     const result = await sendPasswordResetEmail(testTo, '123456', 'Test');
