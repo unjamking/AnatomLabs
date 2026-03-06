@@ -256,6 +256,7 @@ export default function WorkoutsScreen() {
     setPlanWorkouts(updated);
     setShowExercisePicker(false);
     setPickerSearch('');
+    setTimeout(() => setShowPlanBuilder(true), 350);
   };
 
   const updateExercise = (dayIndex: number, exIndex: number, field: string, value: any) => {
@@ -1378,21 +1379,6 @@ export default function WorkoutsScreen() {
                     />
                   </View>
 
-                  <Text style={[styles.formLabel, { marginTop: 8, marginBottom: 6 }]}>Split</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
-                    <View style={{ flexDirection: 'row', gap: 6 }}>
-                      {SPLIT_OPTIONS.map((s) => (
-                        <TouchableOpacity
-                          key={s}
-                          style={[styles.muscleGroupChip, day.split === s.toLowerCase().replace(/\//g, '_') && styles.muscleGroupChipActive]}
-                          onPress={() => updateDay(dayIndex, 'split', s.toLowerCase().replace(/\//g, '_'))}
-                        >
-                          <Text style={[styles.muscleGroupChipText, day.split === s.toLowerCase().replace(/\//g, '_') && styles.muscleGroupChipTextActive]}>{s}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </ScrollView>
-
                   {day.exercises.map((ex: any, exIndex: number) => (
                     <View key={exIndex} style={styles.builderExerciseRow}>
                       <View style={{ flex: 1 }}>
@@ -1437,7 +1423,8 @@ export default function WorkoutsScreen() {
                     onPress={() => {
                       trigger('light');
                       setEditingDayIndex(dayIndex);
-                      setShowExercisePicker(true);
+                      setShowPlanBuilder(false);
+                      setTimeout(() => setShowExercisePicker(true), 350);
                     }}
                   >
                     <Ionicons name="add-circle-outline" size={18} color={COLORS.primary} />
@@ -1470,11 +1457,11 @@ export default function WorkoutsScreen() {
         </View>
       </Modal>
 
-      <Modal visible={showExercisePicker} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowExercisePicker(false)}>
+      <Modal visible={showExercisePicker} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => { setShowExercisePicker(false); setTimeout(() => setShowPlanBuilder(true), 350); }}>
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Pick Exercise</Text>
-            <AnimatedButton variant="ghost" size="small" onPress={() => setShowExercisePicker(false)} title="Cancel" textStyle={{ color: COLORS.primary }} />
+            <Text style={styles.modalTitle}>Add Exercise</Text>
+            <AnimatedButton variant="ghost" size="small" onPress={() => { setShowExercisePicker(false); setTimeout(() => setShowPlanBuilder(true), 350); }} title="Back" textStyle={{ color: COLORS.primary }} />
           </View>
           <View style={styles.searchContainer}>
             <Ionicons name="search" size={18} color={COLORS.textSecondary} />
@@ -1487,6 +1474,17 @@ export default function WorkoutsScreen() {
             />
           </View>
           <Animated.ScrollView style={styles.exerciseList}>
+            <TouchableOpacity
+              style={styles.createCustomButton}
+              onPress={() => {
+                setShowExercisePicker(false);
+                setTimeout(() => setShowCustomExerciseModal(true), 350);
+              }}
+            >
+              <Ionicons name="create-outline" size={20} color={COLORS.primary} />
+              <Text style={styles.createCustomButtonText}>Create Custom Exercise</Text>
+            </TouchableOpacity>
+
             {customExercises.filter(e =>
               !pickerSearch || e.name.toLowerCase().includes(pickerSearch.toLowerCase())
             ).map((exercise, index) => (
