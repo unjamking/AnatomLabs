@@ -145,6 +145,9 @@ export default function WorkoutsScreen() {
       setCustomNotes('');
       setShowCustomExerciseModal(false);
       await loadCustomExercises();
+      if (editingDayIndex >= 0) {
+        setTimeout(() => setShowExercisePicker(true), 350);
+      }
     } catch (err) {
       trigger('error');
       Alert.alert('Error', 'Failed to create custom exercise');
