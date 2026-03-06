@@ -185,6 +185,7 @@ model WorkoutPlan {
   description     String?
   rationale       String?
 
+  isCustom    Boolean  @default(false)
   isActive    Boolean  @default(true)
 
   createdAt   DateTime @default(now())

@@ -187,6 +187,161 @@ router.get('/plans/:id', authenticateToken, async (req: AuthRequest, res: Respon
   }
 });
 
+router.post('/plans/custom', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { name, goal, daysPerWeek, workouts: workoutDays } = req.body;
+
+    if (!name || !goal || !daysPerWeek || !workoutDays?.length) {
+      return res.status(400).json({ error: 'name, goal, daysPerWeek, and workouts are required' });
+    }
+
+    const dbExercises = await prisma.exercise.findMany({ select: { id: true, name: true } });
+    const exerciseNameToId = new Map<string, string>();
+    dbExercises.forEach(e => exerciseNameToId.set(e.name.toLowerCase(), e.id));
+
+    const workoutPlan = await prisma.workoutPlan.create({
+      data: {
+        userId,
+        name,
+        goal,
+        daysPerWeek,
+        isCustom: true,
+      }
+    });
+
+    await Promise.all(
+      workoutDays.map(async (day: any, dayIndex: number) => {
+        const workout = await prisma.workout.create({
+          data: {
+            workoutPlanId: workoutPlan.id,
+            dayName: day.dayName || `Day ${dayIndex + 1}`,
+            dayOfWeek: dayIndex + 1,
+            split: day.split || 'custom',
+            focus: day.focus || [],
+          }
+        });
+
+        if (day.exercises?.length) {
+          await Promise.all(
+            day.exercises.map(async (ex: any, exIndex: number) => {
+              const matchedId = ex.exerciseId || exerciseNameToId.get(ex.exerciseName?.toLowerCase()) || null;
+              await prisma.workoutExercise.create({
+                data: {
+                  workoutId: workout.id,
+                  exerciseName: ex.exerciseName,
+                  exerciseId: matchedId,
+                  sets: ex.sets || 3,
+                  reps: ex.reps || '8-12',
+                  rest: ex.rest || 90,
+                  notes: ex.notes || null,
+                  targetMuscles: ex.targetMuscles || [],
+                  orderIndex: exIndex,
+                }
+              });
+            })
+          );
+        }
+      })
+    );
+
+    const fullPlan = await prisma.workoutPlan.findUnique({
+      where: { id: workoutPlan.id },
+      include: {
+        workouts: {
+          include: { exercises: { orderBy: { orderIndex: 'asc' } } },
+          orderBy: { dayOfWeek: 'asc' }
+        }
+      }
+    });
+
+    res.status(201).json({ message: 'Custom workout plan created', plan: fullPlan });
+  } catch (error) {
+    console.error('Create custom plan error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/plans/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId!;
+    const { name, goal, daysPerWeek, workouts: workoutDays } = req.body;
+
+    const plan = await prisma.workoutPlan.findFirst({ where: { id, userId } });
+    if (!plan) {
+      return res.status(404).json({ error: 'Workout plan not found' });
+    }
+
+    const dbExercises = await prisma.exercise.findMany({ select: { id: true, name: true } });
+    const exerciseNameToId = new Map<string, string>();
+    dbExercises.forEach(e => exerciseNameToId.set(e.name.toLowerCase(), e.id));
+
+    await prisma.workout.deleteMany({ where: { workoutPlanId: id } });
+
+    await prisma.workoutPlan.update({
+      where: { id },
+      data: {
+        name: name || plan.name,
+        goal: goal || plan.goal,
+        daysPerWeek: daysPerWeek || plan.daysPerWeek,
+      }
+    });
+
+    if (workoutDays?.length) {
+      await Promise.all(
+        workoutDays.map(async (day: any, dayIndex: number) => {
+          const workout = await prisma.workout.create({
+            data: {
+              workoutPlanId: id,
+              dayName: day.dayName || `Day ${dayIndex + 1}`,
+              dayOfWeek: dayIndex + 1,
+              split: day.split || 'custom',
+              focus: day.focus || [],
+            }
+          });
+
+          if (day.exercises?.length) {
+            await Promise.all(
+              day.exercises.map(async (ex: any, exIndex: number) => {
+                const matchedId = ex.exerciseId || exerciseNameToId.get(ex.exerciseName?.toLowerCase()) || null;
+                await prisma.workoutExercise.create({
+                  data: {
+                    workoutId: workout.id,
+                    exerciseName: ex.exerciseName,
+                    exerciseId: matchedId,
+                    sets: ex.sets || 3,
+                    reps: ex.reps || '8-12',
+                    rest: ex.rest || 90,
+                    notes: ex.notes || null,
+                    targetMuscles: ex.targetMuscles || [],
+                    orderIndex: exIndex,
+                  }
+                });
+              })
+            );
+          }
+        })
+      );
+    }
+
+    const fullPlan = await prisma.workoutPlan.findUnique({
+      where: { id },
+      include: {
+        workouts: {
+          include: { exercises: { orderBy: { orderIndex: 'asc' } } },
+          orderBy: { dayOfWeek: 'asc' }
+        }
+      }
+    });
+
+    res.status(200).json({ message: 'Workout plan updated', plan: fullPlan });
+  } catch (error) {
+    console.error('Update plan error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // DELETE /api/workouts/plans/:id - Delete workout plan
 router.delete('/plans/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {

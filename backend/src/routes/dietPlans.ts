@@ -87,6 +87,7 @@ const router = Router();
 router.post('/generate', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
+    const { targetWeight, dietGoal } = req.body || {};
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -101,17 +102,36 @@ router.post('/generate', authenticateToken, async (req: AuthRequest, res: Respon
       return res.status(400).json({ error: 'Complete your profile (age, gender, weight, height) to generate a diet plan' });
     }
 
+    const effectiveGoal = dietGoal || user.goal || 'general_fitness';
+
     const userData = {
       age: user.age, gender: user.gender as 'male' | 'female',
       weight: user.weight, height: user.height,
       activityLevel: (user.activityLevel || 'moderate') as any,
-      fitnessGoal: (user.goal || 'general_fitness') as any,
+      fitnessGoal: effectiveGoal as any,
     };
 
     const bmr = calculateBMR(userData);
     const tdee = calculateTDEE(bmr, userData.activityLevel);
-    const targetCalories = calculateTargetCalories(tdee, userData.fitnessGoal);
-    const macros = calculateMacros(targetCalories, userData.weight, userData.fitnessGoal);
+
+    let targetCalories: number;
+    if (targetWeight && targetWeight !== user.weight) {
+      if (targetWeight < user.weight) {
+        const deficit = Math.min(750, Math.max(300, (user.weight - targetWeight) * 50));
+        targetCalories = Math.round(tdee - deficit);
+      } else {
+        const surplus = Math.min(500, Math.max(200, (targetWeight - user.weight) * 40));
+        targetCalories = Math.round(tdee + surplus);
+      }
+    } else {
+      targetCalories = calculateTargetCalories(tdee, effectiveGoal);
+    }
+
+    const macroGoal = dietGoal === 'build_muscle' ? 'muscle_gain'
+      : dietGoal === 'lose_fat' ? 'fat_loss'
+      : dietGoal === 'maintain' ? 'general_fitness'
+      : effectiveGoal;
+    const macros = calculateMacros(targetCalories, userData.weight, macroGoal);
 
     const foods = await prisma.food.findMany({ take: 300 });
 
@@ -126,7 +146,11 @@ router.post('/generate', authenticateToken, async (req: AuthRequest, res: Respon
     const totalCarbs = meals.reduce((s, m) => s + m.totals.carbs, 0);
     const totalFat = meals.reduce((s, m) => s + m.totals.fat, 0);
 
-    const planName = `${userData.fitnessGoal.replace(/_/g, ' ')} plan - ${targetCalories} cal`;
+    const goalLabel = dietGoal
+      ? dietGoal.replace(/_/g, ' ')
+      : userData.fitnessGoal.replace(/_/g, ' ');
+    const weightLabel = targetWeight ? ` · ${targetWeight}kg target` : '';
+    const planName = `${goalLabel} plan - ${targetCalories} cal${weightLabel}`;
 
     const dietPlan = await prisma.dietPlan.create({
       data: {
@@ -137,7 +161,7 @@ router.post('/generate', authenticateToken, async (req: AuthRequest, res: Respon
         targetCarbs: macros.carbs,
         targetFat: macros.fat,
         meals: meals as any,
-        preferences: { allergies: user.foodAllergies, dietary: user.dietaryPreferences, goal: user.goal },
+        preferences: { allergies: user.foodAllergies, dietary: user.dietaryPreferences, goal: effectiveGoal, targetWeight: targetWeight || null, dietGoal: dietGoal || null },
       },
     });
 
