@@ -12,7 +12,7 @@ const coaches = [
     rating: 4.9,
     reviews: 128,
     initials: "SM",
-    gradient: "from-primary to-purple",
+    gradient: "from-[#e74c3c] to-[#a855f7]",
   },
   {
     name: "Marcus Chen",
@@ -20,7 +20,7 @@ const coaches = [
     rating: 4.8,
     reviews: 94,
     initials: "MC",
-    gradient: "from-success to-info",
+    gradient: "from-[#22c55e] to-[#3b82f6]",
   },
   {
     name: "Dr. Elena Torres",
@@ -28,7 +28,7 @@ const coaches = [
     rating: 5.0,
     reviews: 211,
     initials: "ET",
-    gradient: "from-warning to-primary",
+    gradient: "from-[#f59e0b] to-[#e74c3c]",
   },
   {
     name: "James Okafor",
@@ -36,7 +36,7 @@ const coaches = [
     rating: 4.9,
     reviews: 76,
     initials: "JO",
-    gradient: "from-purple to-primary",
+    gradient: "from-[#a855f7] to-[#e74c3c]",
   },
   {
     name: "Dr. Anika Patel",
@@ -44,15 +44,15 @@ const coaches = [
     rating: 4.7,
     reviews: 163,
     initials: "AP",
-    gradient: "from-teal to-info",
+    gradient: "from-[#14b8a6] to-[#3b82f6]",
   },
   {
-    name: "Sofia Bergström",
+    name: "Sofia Bergstr\u00f6m",
     specialty: ["Mobility", "Rehab"],
     rating: 4.8,
     reviews: 89,
     initials: "SB",
-    gradient: "from-info to-purple",
+    gradient: "from-[#3b82f6] to-[#a855f7]",
   },
 ];
 
@@ -69,47 +69,61 @@ function CoachCard({
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 24 }}
       animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.5, delay: index * 0.06, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="group w-full bg-bg-card rounded-2xl border border-border p-6 card-depth hover:border-primary/30 transition-all duration-500 hover:-translate-y-0.5 hover:shadow-[0_8px_40px_rgba(231,76,60,0.06)]"
+      transition={{
+        duration: 0.55,
+        delay: index * 0.08,
+        ease: [0.25, 0.46, 0.45, 0.94],
+      }}
+      className="group w-full bg-[#111111] rounded-2xl border border-white/[0.06] p-6 shadow-[0_2px_20px_rgba(0,0,0,0.3)] hover:border-[#e74c3c]/30 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_12px_48px_rgba(231,76,60,0.1)] relative overflow-hidden"
     >
-      <div className="flex items-start gap-3 mb-4">
-        <div className="p-[1.5px] rounded-full bg-gradient-to-br from-white/15 to-white/5">
-          <div
-            className={`w-10 h-10 rounded-full bg-gradient-to-br ${coach.gradient} flex items-center justify-center text-white text-xs font-semibold`}
-          >
-            {coach.initials}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+      <div className="relative">
+        <div className="flex items-start gap-3.5 mb-4">
+          <div className="p-[1.5px] rounded-full bg-gradient-to-br from-white/20 to-white/5 shadow-[0_0_20px_rgba(231,76,60,0.1)]">
+            <div
+              className={`w-11 h-11 rounded-full bg-gradient-to-br ${coach.gradient} flex items-center justify-center text-white text-xs font-bold tracking-wide`}
+            >
+              {coach.initials}
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 mb-1">
+              <h4 className="text-[14px] font-semibold text-white truncate">
+                {coach.name}
+              </h4>
+              <Award size={13} className="text-blue-400 shrink-0" />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Star size={11} fill="#f59e0b" className="text-amber-400" />
+              <span className="text-xs font-semibold text-white tabular-nums">
+                {coach.rating}
+              </span>
+              <span className="text-[11px] text-white/40">
+                ({coach.reviews} reviews)
+              </span>
+            </div>
           </div>
         </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <h4 className="text-sm font-semibold text-text">{coach.name}</h4>
-            <Award size={12} className="text-info" />
-          </div>
-          <div className="flex items-center gap-1">
-            <Star size={10} fill="#f39c12" className="text-warning" />
-            <span className="text-xs font-medium text-text tabular-nums">{coach.rating}</span>
-            <span className="text-[11px] text-text-tertiary">({coach.reviews})</span>
-          </div>
+
+        <div className="flex flex-wrap gap-1.5 mb-5">
+          {coach.specialty.map((tag) => (
+            <span
+              key={tag}
+              className="text-[10px] font-medium text-white/50 bg-white/[0.04] rounded-lg px-2.5 py-1.5 uppercase tracking-[0.08em] border border-white/[0.04]"
+            >
+              {tag}
+            </span>
+          ))}
         </div>
-      </div>
 
-      <div className="flex flex-wrap gap-1.5 mb-5">
-        {coach.specialty.map((tag) => (
-          <span
-            key={tag}
-            className="text-[10px] font-medium text-text-secondary bg-bg-card-light rounded-lg px-2.5 py-1 uppercase tracking-[0.06em]"
-          >
-            {tag}
-          </span>
-        ))}
+        <button className="w-full flex items-center justify-center gap-2 bg-[#e74c3c] text-white text-[13px] font-semibold py-2.5 rounded-xl hover:bg-[#c0392b] transition-all duration-300 shadow-[0_2px_12px_rgba(231,76,60,0.25)] hover:shadow-[0_4px_20px_rgba(231,76,60,0.35)]">
+          Book Session
+          <ChevronRight size={13} className="group-hover:translate-x-0.5 transition-transform duration-300" />
+        </button>
       </div>
-
-      <button className="w-full flex items-center justify-center gap-2 bg-primary text-white text-[13px] font-medium py-2.5 rounded-xl hover:bg-primary-dark transition-colors duration-300">
-        Book Session
-        <ChevronRight size={12} />
-      </button>
     </motion.div>
   );
 }
@@ -124,10 +138,10 @@ export default function Marketplace() {
             <p className="text-xs font-semibold text-primary uppercase tracking-[0.2em] mb-4">
               Elite Marketplace
             </p>
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-text mb-6 leading-tight">
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-white mb-4 leading-tight">
               Find Your Pro.
             </h2>
-            <p className="text-base text-text-tertiary max-w-md mx-auto leading-relaxed">
+            <p className="text-base text-white/40 max-w-md mx-auto leading-relaxed">
               Direct access to elite expertise. Verified coaches. Custom
               programming. Real-time feedback.
             </p>
@@ -135,20 +149,18 @@ export default function Marketplace() {
         </ScrollReveal>
 
         <ScrollReveal delay={0.1}>
-          <div className="flex items-center justify-center gap-5 mb-14 text-sm text-text-secondary">
-            <div className="flex items-center gap-2">
-              <Award size={14} className="text-info" />
-              <span className="text-xs">Verified Profiles</span>
+          <div className="flex items-center justify-center gap-6 mb-14">
+            <div className="flex items-center gap-2.5 bg-white/[0.03] rounded-full px-4 py-2 border border-white/[0.06]">
+              <Award size={14} className="text-blue-400" />
+              <span className="text-xs font-medium text-white/60">Verified Profiles</span>
             </div>
-            <div className="w-px h-3 bg-border" />
-            <div className="flex items-center gap-2">
-              <Users size={14} className="text-success" />
-              <span className="text-xs">Session Booking</span>
+            <div className="flex items-center gap-2.5 bg-white/[0.03] rounded-full px-4 py-2 border border-white/[0.06]">
+              <Users size={14} className="text-green-400" />
+              <span className="text-xs font-medium text-white/60">Session Booking</span>
             </div>
-            <div className="w-px h-3 bg-border hidden sm:block" />
-            <div className="hidden sm:flex items-center gap-2">
-              <Star size={14} className="text-warning" />
-              <span className="text-xs">Performance Feed</span>
+            <div className="hidden sm:flex items-center gap-2.5 bg-white/[0.03] rounded-full px-4 py-2 border border-white/[0.06]">
+              <Star size={14} className="text-amber-400" />
+              <span className="text-xs font-medium text-white/60">Performance Feed</span>
             </div>
           </div>
         </ScrollReveal>

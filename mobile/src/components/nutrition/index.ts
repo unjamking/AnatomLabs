@@ -1,9 +1,1 @@
-export { default as ProgressRing } from './ProgressRing';
-export { default as DailyProgress } from './DailyProgress';
-export { default as FoodLogItem } from './FoodLogItem';
-export { default as MealsList } from './MealsList';
-export { default as QuickAddBar } from './QuickAddBar';
-export { default as AddFoodModal } from './AddFoodModal';
-export { default as WeightChart } from './WeightChart';
-export { default as StreakDisplay } from './StreakDisplay';
-export { default as SuggestionCard } from './SuggestionCard';
+export * from '../../features/nutrition/components';

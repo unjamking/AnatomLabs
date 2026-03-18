@@ -225,7 +225,10 @@ router.post('/plans/custom', authenticateToken, async (req: AuthRequest, res: Re
         if (day.exercises?.length) {
           await Promise.all(
             day.exercises.map(async (ex: any, exIndex: number) => {
-              const matchedId = ex.exerciseId || exerciseNameToId.get(ex.exerciseName?.toLowerCase()) || null;
+              let matchedId = ex.exerciseId || exerciseNameToId.get(ex.exerciseName?.toLowerCase()) || null;
+              if (matchedId && !exerciseNameToId.has(ex.exerciseName?.toLowerCase()) && !dbExercises.some(e => e.id === matchedId)) {
+                matchedId = null;
+              }
               await prisma.workoutExercise.create({
                 data: {
                   workoutId: workout.id,
@@ -304,7 +307,10 @@ router.put('/plans/:id', authenticateToken, async (req: AuthRequest, res: Respon
           if (day.exercises?.length) {
             await Promise.all(
               day.exercises.map(async (ex: any, exIndex: number) => {
-                const matchedId = ex.exerciseId || exerciseNameToId.get(ex.exerciseName?.toLowerCase()) || null;
+                let matchedId = ex.exerciseId || exerciseNameToId.get(ex.exerciseName?.toLowerCase()) || null;
+                if (matchedId && !exerciseNameToId.has(ex.exerciseName?.toLowerCase()) && !dbExercises.some(e => e.id === matchedId)) {
+                  matchedId = null;
+                }
                 await prisma.workoutExercise.create({
                   data: {
                     workoutId: workout.id,

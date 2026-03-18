@@ -35,7 +35,7 @@ export function authenticateToken(
   }
 }
 
-export function generateToken(userId: string): string {
+export function generateToken(userId: string, rememberMe: boolean = false): string {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     throw new Error('JWT_SECRET not configured');
@@ -44,6 +44,6 @@ export function generateToken(userId: string): string {
   return jwt.sign(
     { userId },
     secret,
-    { expiresIn: '7d' }
+    { expiresIn: rememberMe ? '30d' : '7d' }
   );
 }

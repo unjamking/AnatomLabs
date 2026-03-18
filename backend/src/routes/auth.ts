@@ -314,7 +314,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
 
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, rememberMe } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
@@ -334,7 +334,7 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    const token = generateToken(user.id);
+    const token = generateToken(user.id, !!rememberMe);
 
     const { password: _, verificationCode: _vc, verificationExpiry: _ve, ...userWithoutSensitive } = user;
 
