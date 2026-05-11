@@ -26,7 +26,7 @@ function normalizeNonNegativeInt(value: unknown): number | undefined {
   return normalized;
 }
 
-function normalizeNonNegativeFloat(value: unknown): number | null | undefined {
+function normalizeNonNegativeFloat(value: unknown): number | undefined {
   if (value === undefined || value === null || value === '') {
     return undefined;
   }
