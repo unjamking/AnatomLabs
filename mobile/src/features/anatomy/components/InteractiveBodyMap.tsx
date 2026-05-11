@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   FadeIn as ReanimatedFadeIn,
+  FadeInDown,
   FadeOut as ReanimatedFadeOut,
   SlideInLeft,
   SlideInRight,
@@ -87,6 +88,7 @@ export default function InteractiveBodyMap({
   const translateY = useSharedValue(0);
   const savedTranslateX = useSharedValue(0);
   const savedTranslateY = useSharedValue(0);
+  const selectionBadgeScale = useSharedValue(1);
 
   const currentSelected = typeof selectedMuscle === 'undefined' ? internalSelected : selectedMuscle;
   const currentView = activeView ?? internalView;
@@ -98,6 +100,19 @@ export default function InteractiveBodyMap({
       stiffness: 190,
     });
   }, [currentView, indicatorIndex]);
+
+  useEffect(() => {
+    if (!currentSelected) {
+      selectionBadgeScale.value = withTiming(1, { duration: 140 });
+      return;
+    }
+
+    selectionBadgeScale.value = 1.05;
+    selectionBadgeScale.value = withSpring(1, {
+      damping: 11,
+      stiffness: 180,
+    });
+  }, [currentSelected, selectionBadgeScale]);
 
   const trainingMap = useMemo(() => {
     const map = new Map<string, TrainingData>();
@@ -200,6 +215,10 @@ export default function InteractiveBodyMap({
     ],
   }));
 
+  const selectedBadgeStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: selectionBadgeScale.value }],
+  }));
+
   const onControlLayout = (event: LayoutChangeEvent) => {
     setControlWidth(event.nativeEvent.layout.width);
   };
@@ -209,7 +228,8 @@ export default function InteractiveBodyMap({
 
   return (
     <View style={[styles.container, { minHeight: height }]}>
-      <View
+      <Animated.View
+        entering={FadeInDown.duration(240)}
         style={[
           styles.segmentedControl,
           { backgroundColor: '#E3EBF4', borderColor: '#C9D6E4' },
@@ -240,9 +260,12 @@ export default function InteractiveBodyMap({
             </Pressable>
           );
         })}
-      </View>
+      </Animated.View>
 
-      <View style={[styles.stageCard, { borderColor: '#D7E2EE', backgroundColor: '#FFFFFF' }]}>
+      <Animated.View
+        entering={FadeInDown.duration(280).delay(40)}
+        style={[styles.stageCard, { borderColor: '#D7E2EE', backgroundColor: '#FFFFFF' }]}
+      >
         <View style={styles.stageToolbar}>
           <View>
             <Text style={styles.stageTitle}>Interactive muscle atlas</Text>
@@ -326,9 +349,15 @@ export default function InteractiveBodyMap({
           </View>
 
           {selectedRegion ? (
-            <View style={[styles.selectedBadge, { borderColor: '#F2C2C7', backgroundColor: '#FFF1F3' }]}>
+            <Animated.View
+              style={[
+                styles.selectedBadge,
+                selectedBadgeStyle,
+                { borderColor: '#F2C2C7', backgroundColor: '#FFF1F3' },
+              ]}
+            >
               <Text style={styles.selectedText}>{selectedRegion.name}</Text>
-            </View>
+            </Animated.View>
           ) : (
             <View style={styles.helperBadge}>
               <Ionicons name="sync-outline" size={14} color="#9BB0D8" />
@@ -336,7 +365,7 @@ export default function InteractiveBodyMap({
             </View>
           )}
         </View>
-      </View>
+      </Animated.View>
 
       {mode === 'heatmap' ? <HeatmapLegend /> : null}
     </View>

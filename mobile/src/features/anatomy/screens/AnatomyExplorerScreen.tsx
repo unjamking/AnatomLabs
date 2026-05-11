@@ -8,13 +8,14 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import InteractiveBodyMap, { AnatomyCanvasView, AnatomyThemeId } from '../components/InteractiveBodyMap';
 import MuscleBodyDiagram from '../components/MuscleBodyDiagram';
 import {
@@ -115,6 +116,7 @@ export default function AnatomyExplorerScreen() {
   const navigation = useNavigation<any>();
   const { trigger } = useHaptics();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const isMountedRef = useRef(true);
   const detailRequestRef = useRef(0);
 
@@ -267,6 +269,12 @@ export default function AnatomyExplorerScreen() {
     );
   }, [difficultyFilter, selectedDetail]);
 
+  const closeDetailSheet = useCallback(() => {
+    handleMusclePress('', '');
+  }, [handleMusclePress]);
+
+  const sheetMaxHeight = Math.min(windowHeight - insets.top - 88, 560);
+
   const selectSearchResult = (muscleId: string) => {
     const region = getAnatomyRegion(muscleId);
     if (!region) {
@@ -415,8 +423,22 @@ export default function AnatomyExplorerScreen() {
         </ScrollView>
 
         {selectedMuscle ? (
-          <Animated.View entering={SlideInDown.duration(260)} exiting={SlideOutDown.duration(180)} style={styles.sheetWrap}>
-            <View style={styles.sheetCard}>
+          <>
+            <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(140)} style={styles.sheetBackdrop}>
+              <Pressable
+                style={StyleSheet.absoluteFill}
+                onPress={closeDetailSheet}
+                accessibilityRole="button"
+                accessibilityLabel="Close muscle detail sheet"
+              />
+            </Animated.View>
+
+            <Animated.View
+              entering={SlideInDown.duration(220)}
+              exiting={SlideOutDown.duration(160)}
+              style={[styles.sheetWrap, { bottom: Math.max(insets.bottom, 12) }]}
+            >
+              <View style={[styles.sheetCard, { maxHeight: sheetMaxHeight }]}>
               <View style={styles.sheetHandle} />
 
                 <View style={styles.sheetHeader}>
@@ -433,8 +455,9 @@ export default function AnatomyExplorerScreen() {
                 </View>
 
                 <Pressable
-                  onPress={() => handleMusclePress('', '')}
-                  style={styles.closeButton}
+                  onPress={closeDetailSheet}
+                  hitSlop={12}
+                  style={({ pressed }) => [styles.closeButton, pressed && styles.closeButtonPressed]}
                   accessibilityRole="button"
                   accessibilityLabel="Close muscle detail sheet"
                 >
@@ -448,7 +471,12 @@ export default function AnatomyExplorerScreen() {
                   <Text style={styles.loadingText}>Loading recovery, difficulty, and exercise suggestions...</Text>
                 </View>
               ) : (
-                <>
+                <ScrollView
+                  style={styles.sheetScroll}
+                  contentContainerStyle={styles.sheetScrollContent}
+                  showsVerticalScrollIndicator={false}
+                  bounces={false}
+                >
                   <View style={styles.sheetMetrics}>
                     <View style={styles.metricChip}>
                       <Ionicons name="speedometer-outline" size={14} color="#E36171" />
@@ -511,10 +539,11 @@ export default function AnatomyExplorerScreen() {
                       </View>
                     ))}
                   </View>
-                </>
+                </ScrollView>
               )}
-            </View>
-          </Animated.View>
+              </View>
+            </Animated.View>
+          </>
         ) : null}
       </View>
     </View>
@@ -702,12 +731,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 14,
     right: 14,
-    bottom: 12,
+    zIndex: 6,
+  },
+  sheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(12, 17, 28, 0.16)',
+    zIndex: 5,
   },
   sheetCard: {
     borderRadius: 28,
     borderWidth: 1,
-    padding: 18,
+    paddingTop: 14,
+    paddingHorizontal: 18,
+    paddingBottom: 18,
     borderColor: '#D7E2EE',
     backgroundColor: '#FFFFFF',
     shadowColor: '#000',
@@ -715,13 +751,14 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 16 },
     elevation: 16,
+    overflow: 'hidden',
   },
   sheetHandle: {
     alignSelf: 'center',
     width: 44,
     height: 5,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: '#D5DEE8',
     marginBottom: 14,
   },
   sheetHeader: {
@@ -759,12 +796,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F3F7FC',
+    borderWidth: 1,
+    borderColor: '#D7E2EE',
+  },
+  closeButtonPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.96 }],
   },
   loadingState: {
     minHeight: 180,
@@ -776,6 +819,12 @@ const styles = StyleSheet.create({
     color: '#7087A2',
     fontSize: 13,
     textAlign: 'center',
+  },
+  sheetScroll: {
+    flexGrow: 0,
+  },
+  sheetScrollContent: {
+    paddingBottom: 6,
   },
   referenceCard: {
     borderRadius: 20,

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   Image,
   ImageSourcePropType,
@@ -7,6 +7,13 @@ import {
   Text,
   View,
 } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { AnatomySide, AnatomyThemeId, TrainingData, getAnatomyRegion } from './anatomyData';
 
 interface PremiumAnatomyFigureProps {
@@ -45,6 +52,30 @@ interface Hotspot {
   width: string;
   height: string;
   borderRadius?: number;
+}
+
+function formatPercent(value: number) {
+  return `${Math.max(0, Number(value.toFixed(2)))}%`;
+}
+
+function insetHotspots(hotspots: Hotspot[], scaleX = 0.92, scaleY = 0.92) {
+  return hotspots.map((hotspot) => {
+    const left = Number.parseFloat(hotspot.left);
+    const top = Number.parseFloat(hotspot.top);
+    const width = Number.parseFloat(hotspot.width);
+    const height = Number.parseFloat(hotspot.height);
+
+    const nextWidth = width * scaleX;
+    const nextHeight = height * scaleY;
+
+    return {
+      ...hotspot,
+      left: formatPercent(left + (width - nextWidth) / 2),
+      top: formatPercent(top + (height - nextHeight) / 2),
+      width: formatPercent(nextWidth),
+      height: formatPercent(nextHeight),
+    };
+  });
 }
 
 const FRONT_ASSETS: Record<ReferenceVisualKey, ImageSourcePropType> = {
@@ -106,53 +137,53 @@ const BACK_PRIORITY = [
 ];
 
 const FRONT_HOTSPOTS: Hotspot[] = [
-  { key: 'front-delts-left', muscleId: 'front_delts', left: '13%', top: '12%', width: '13%', height: '9%', borderRadius: 999 },
-  { key: 'front-delts-right', muscleId: 'front_delts', left: '74%', top: '12%', width: '13%', height: '9%', borderRadius: 999 },
-  { key: 'side-delts-left', muscleId: 'side_delts', left: '12%', top: '12%', width: '14%', height: '10%', borderRadius: 999 },
-  { key: 'side-delts-right', muscleId: 'side_delts', left: '74%', top: '12%', width: '14%', height: '10%', borderRadius: 999 },
+  { key: 'front-delts-left', muscleId: 'front_delts', left: '14%', top: '12.5%', width: '11.5%', height: '8%', borderRadius: 999 },
+  { key: 'front-delts-right', muscleId: 'front_delts', left: '74.5%', top: '12.5%', width: '11.5%', height: '8%', borderRadius: 999 },
+  { key: 'side-delts-left', muscleId: 'side_delts', left: '11.5%', top: '13%', width: '11.5%', height: '8.5%', borderRadius: 999 },
+  { key: 'side-delts-right', muscleId: 'side_delts', left: '77%', top: '13%', width: '11.5%', height: '8.5%', borderRadius: 999 },
   { key: 'upper-chest-left', muscleId: 'upper_chest', left: '36%', top: '13%', width: '14%', height: '6%', borderRadius: 10 },
   { key: 'upper-chest-right', muscleId: 'upper_chest', left: '50%', top: '13%', width: '14%', height: '6%', borderRadius: 10 },
   { key: 'lower-chest-left', muscleId: 'lower_chest', left: '33%', top: '17%', width: '16%', height: '7%', borderRadius: 10 },
   { key: 'lower-chest-right', muscleId: 'lower_chest', left: '51%', top: '17%', width: '16%', height: '7%', borderRadius: 10 },
-  { key: 'biceps-left', muscleId: 'biceps', left: '13%', top: '20%', width: '11%', height: '14%', borderRadius: 999 },
-  { key: 'biceps-right', muscleId: 'biceps', left: '76%', top: '20%', width: '11%', height: '14%', borderRadius: 999 },
-  { key: 'forearms-left', muscleId: 'forearms', left: '7%', top: '33%', width: '12%', height: '16%', borderRadius: 999 },
-  { key: 'forearms-right', muscleId: 'forearms', left: '81%', top: '33%', width: '12%', height: '16%', borderRadius: 999 },
+  { key: 'biceps-left', muscleId: 'biceps', left: '14%', top: '21%', width: '9%', height: '12%', borderRadius: 999 },
+  { key: 'biceps-right', muscleId: 'biceps', left: '77%', top: '21%', width: '9%', height: '12%', borderRadius: 999 },
+  { key: 'forearms-left', muscleId: 'forearms', left: '8%', top: '35%', width: '9%', height: '13%', borderRadius: 999 },
+  { key: 'forearms-right', muscleId: 'forearms', left: '83%', top: '35%', width: '9%', height: '13%', borderRadius: 999 },
   { key: 'upper-abs', muscleId: 'upper_abs', left: '41%', top: '27%', width: '18%', height: '10%', borderRadius: 10 },
   { key: 'lower-abs', muscleId: 'lower_abs', left: '44%', top: '39%', width: '12%', height: '13%', borderRadius: 10 },
   { key: 'obliques-left', muscleId: 'obliques', left: '33%', top: '29%', width: '8%', height: '16%', borderRadius: 10 },
   { key: 'obliques-right', muscleId: 'obliques', left: '59%', top: '29%', width: '8%', height: '16%', borderRadius: 10 },
-  { key: 'quads-left', muscleId: 'quads', left: '31%', top: '54%', width: '14%', height: '23%', borderRadius: 12 },
-  { key: 'quads-right', muscleId: 'quads', left: '55%', top: '54%', width: '14%', height: '23%', borderRadius: 12 },
-  { key: 'adductors-left', muscleId: 'adductors', left: '43%', top: '56%', width: '5%', height: '18%', borderRadius: 10 },
-  { key: 'adductors-right', muscleId: 'adductors', left: '52%', top: '56%', width: '5%', height: '18%', borderRadius: 10 },
-  { key: 'tibialis-left', muscleId: 'tibialis', left: '34%', top: '79%', width: '8%', height: '14%', borderRadius: 12 },
-  { key: 'tibialis-right', muscleId: 'tibialis', left: '58%', top: '79%', width: '8%', height: '14%', borderRadius: 12 },
-  { key: 'calves-left-front', muscleId: 'calves', left: '34%', top: '79%', width: '8%', height: '14%', borderRadius: 12 },
-  { key: 'calves-right-front', muscleId: 'calves', left: '58%', top: '79%', width: '8%', height: '14%', borderRadius: 12 },
+  { key: 'quads-left', muscleId: 'quads', left: '32%', top: '55%', width: '12%', height: '20%', borderRadius: 12 },
+  { key: 'quads-right', muscleId: 'quads', left: '56%', top: '55%', width: '12%', height: '20%', borderRadius: 12 },
+  { key: 'adductors-left', muscleId: 'adductors', left: '43.5%', top: '58%', width: '4%', height: '15%', borderRadius: 10 },
+  { key: 'adductors-right', muscleId: 'adductors', left: '52.5%', top: '58%', width: '4%', height: '15%', borderRadius: 10 },
+  { key: 'tibialis-left', muscleId: 'tibialis', left: '35%', top: '79%', width: '6%', height: '12%', borderRadius: 12 },
+  { key: 'tibialis-right', muscleId: 'tibialis', left: '59%', top: '79%', width: '6%', height: '12%', borderRadius: 12 },
+  { key: 'calves-left-front', muscleId: 'calves', left: '30.5%', top: '80.5%', width: '5.5%', height: '10%', borderRadius: 12 },
+  { key: 'calves-right-front', muscleId: 'calves', left: '64%', top: '80.5%', width: '5.5%', height: '10%', borderRadius: 12 },
 ];
 
 const BACK_HOTSPOTS: Hotspot[] = [
-  { key: 'rear-delts-left', muscleId: 'rear_delts', left: '14%', top: '12%', width: '12%', height: '9%', borderRadius: 999 },
-  { key: 'rear-delts-right', muscleId: 'rear_delts', left: '75%', top: '12%', width: '12%', height: '9%', borderRadius: 999 },
-  { key: 'side-delts-left-back', muscleId: 'side_delts', left: '13%', top: '12%', width: '13%', height: '9%', borderRadius: 999 },
-  { key: 'side-delts-right-back', muscleId: 'side_delts', left: '75%', top: '12%', width: '13%', height: '9%', borderRadius: 999 },
-  { key: 'traps', muscleId: 'traps', left: '35%', top: '8%', width: '30%', height: '17%', borderRadius: 10 },
-  { key: 'upper-lats-left', muscleId: 'upper_lats', left: '27%', top: '19%', width: '14%', height: '14%', borderRadius: 10 },
-  { key: 'upper-lats-right', muscleId: 'upper_lats', left: '59%', top: '19%', width: '14%', height: '14%', borderRadius: 10 },
-  { key: 'lower-lats-left', muscleId: 'lower_lats', left: '28%', top: '31%', width: '13%', height: '16%', borderRadius: 10 },
-  { key: 'lower-lats-right', muscleId: 'lower_lats', left: '59%', top: '31%', width: '13%', height: '16%', borderRadius: 10 },
-  { key: 'erectors', muscleId: 'spinal_erectors', left: '46%', top: '21%', width: '8%', height: '25%', borderRadius: 10 },
-  { key: 'triceps-left', muscleId: 'triceps', left: '14%', top: '21%', width: '10%', height: '12%', borderRadius: 999 },
-  { key: 'triceps-right', muscleId: 'triceps', left: '76%', top: '21%', width: '10%', height: '12%', borderRadius: 999 },
-  { key: 'forearms-left-back', muscleId: 'forearms', left: '8%', top: '33%', width: '12%', height: '16%', borderRadius: 999 },
-  { key: 'forearms-right-back', muscleId: 'forearms', left: '80%', top: '33%', width: '12%', height: '16%', borderRadius: 999 },
-  { key: 'glutes-left', muscleId: 'glutes', left: '36%', top: '50%', width: '11%', height: '9%', borderRadius: 10 },
-  { key: 'glutes-right', muscleId: 'glutes', left: '53%', top: '50%', width: '11%', height: '9%', borderRadius: 10 },
-  { key: 'hamstrings-left', muscleId: 'hamstrings', left: '31%', top: '60%', width: '14%', height: '20%', borderRadius: 12 },
-  { key: 'hamstrings-right', muscleId: 'hamstrings', left: '55%', top: '60%', width: '14%', height: '20%', borderRadius: 12 },
-  { key: 'calves-left-back', muscleId: 'calves', left: '36%', top: '82%', width: '9%', height: '11%', borderRadius: 12 },
-  { key: 'calves-right-back', muscleId: 'calves', left: '54%', top: '82%', width: '9%', height: '11%', borderRadius: 12 },
+  { key: 'rear-delts-left', muscleId: 'rear_delts', left: '14.5%', top: '12.5%', width: '10.5%', height: '8%', borderRadius: 999 },
+  { key: 'rear-delts-right', muscleId: 'rear_delts', left: '75%', top: '12.5%', width: '10.5%', height: '8%', borderRadius: 999 },
+  { key: 'side-delts-left-back', muscleId: 'side_delts', left: '12.5%', top: '13%', width: '11%', height: '8%', borderRadius: 999 },
+  { key: 'side-delts-right-back', muscleId: 'side_delts', left: '76.5%', top: '13%', width: '11%', height: '8%', borderRadius: 999 },
+  { key: 'traps', muscleId: 'traps', left: '37%', top: '9%', width: '26%', height: '13%', borderRadius: 10 },
+  { key: 'upper-lats-left', muscleId: 'upper_lats', left: '29%', top: '21%', width: '11%', height: '12%', borderRadius: 10 },
+  { key: 'upper-lats-right', muscleId: 'upper_lats', left: '60%', top: '21%', width: '11%', height: '12%', borderRadius: 10 },
+  { key: 'lower-lats-left', muscleId: 'lower_lats', left: '29.5%', top: '33%', width: '10%', height: '14%', borderRadius: 10 },
+  { key: 'lower-lats-right', muscleId: 'lower_lats', left: '60.5%', top: '33%', width: '10%', height: '14%', borderRadius: 10 },
+  { key: 'erectors', muscleId: 'spinal_erectors', left: '47%', top: '23%', width: '6%', height: '21%', borderRadius: 10 },
+  { key: 'triceps-left', muscleId: 'triceps', left: '15%', top: '22%', width: '8.5%', height: '10.5%', borderRadius: 999 },
+  { key: 'triceps-right', muscleId: 'triceps', left: '76.5%', top: '22%', width: '8.5%', height: '10.5%', borderRadius: 999 },
+  { key: 'forearms-left-back', muscleId: 'forearms', left: '9%', top: '35%', width: '9.5%', height: '13%', borderRadius: 999 },
+  { key: 'forearms-right-back', muscleId: 'forearms', left: '81.5%', top: '35%', width: '9.5%', height: '13%', borderRadius: 999 },
+  { key: 'glutes-left', muscleId: 'glutes', left: '37%', top: '51%', width: '9%', height: '8%', borderRadius: 10 },
+  { key: 'glutes-right', muscleId: 'glutes', left: '54%', top: '51%', width: '9%', height: '8%', borderRadius: 10 },
+  { key: 'hamstrings-left', muscleId: 'hamstrings', left: '32%', top: '61%', width: '12%', height: '17%', borderRadius: 12 },
+  { key: 'hamstrings-right', muscleId: 'hamstrings', left: '56%', top: '61%', width: '12%', height: '17%', borderRadius: 12 },
+  { key: 'calves-left-back', muscleId: 'calves', left: '37%', top: '83%', width: '7%', height: '9%', borderRadius: 12 },
+  { key: 'calves-right-back', muscleId: 'calves', left: '56%', top: '83%', width: '7%', height: '9%', borderRadius: 12 },
 ];
 
 function muscleToVisual(muscleId: string, side: AnatomySide): ReferenceVisualKey {
@@ -256,10 +287,36 @@ export default function PremiumAnatomyFigure({
     () => pickDisplayMuscle(side, selectedMuscle, primaryIds, secondaryIds, trainingMap, mode),
     [side, selectedMuscle, primaryIds, secondaryIds, trainingMap, mode]
   );
+  const pulse = useSharedValue(0);
 
   const visualKey = displayMuscle ? muscleToVisual(displayMuscle, side) : 'base';
   const source = side === 'front' ? FRONT_ASSETS[visualKey] : BACK_ASSETS[visualKey];
-  const hotspots = side === 'front' ? FRONT_HOTSPOTS : BACK_HOTSPOTS;
+  const hotspots = useMemo(
+    () => insetHotspots(side === 'front' ? FRONT_HOTSPOTS : BACK_HOTSPOTS),
+    [side]
+  );
+  const activeHotspots = useMemo(
+    () => hotspots.filter((hotspot) => hotspot.muscleId === selectedMuscle),
+    [hotspots, selectedMuscle]
+  );
+
+  useEffect(() => {
+    if (activeHotspots.length === 0) {
+      pulse.value = withTiming(0, { duration: 140 });
+      return;
+    }
+
+    pulse.value = withRepeat(
+      withSequence(withTiming(0.35, { duration: 220 }), withTiming(1, { duration: 820 })),
+      -1,
+      true
+    );
+  }, [activeHotspots.length, pulse]);
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: 0.18 + pulse.value * 0.24,
+    transform: [{ scale: 0.96 + pulse.value * 0.05 }],
+  }));
 
   return (
     <View style={[styles.container, { width }]}>
@@ -268,12 +325,30 @@ export default function PremiumAnatomyFigure({
       <View style={[styles.figureFrame, { height }]}>
         <Image source={source} resizeMode="contain" style={styles.image} />
 
+        {activeHotspots.map((hotspot) => (
+          <Animated.View
+            key={`${hotspot.key}-glow`}
+            pointerEvents="none"
+            style={[
+              styles.selectionGlow,
+              glowStyle,
+              {
+                left: hotspot.left,
+                top: hotspot.top,
+                width: hotspot.width,
+                height: hotspot.height,
+                borderRadius: hotspot.borderRadius ?? 999,
+              },
+            ]}
+          />
+        ))}
+
         {interactive &&
           hotspots.map((hotspot) => (
             <Pressable
               key={hotspot.key}
               onPress={() => onSelect?.(hotspot.muscleId)}
-              style={[
+              style={({ pressed }) => [
                 styles.hotspot,
                 {
                   left: hotspot.left,
@@ -281,8 +356,11 @@ export default function PremiumAnatomyFigure({
                   width: hotspot.width,
                   height: hotspot.height,
                   borderRadius: hotspot.borderRadius ?? 999,
+                  opacity: pressed ? 0.92 : 1,
+                  transform: [{ scale: pressed ? 0.96 : 1 }],
                 },
               ]}
+              hitSlop={0}
               accessibilityRole="button"
               accessibilityLabel={`Select ${hotspot.muscleId.replace(/_/g, ' ')}`}
             />
@@ -317,5 +395,15 @@ const styles = StyleSheet.create({
   hotspot: {
     position: 'absolute',
     backgroundColor: 'transparent',
+  },
+  selectionGlow: {
+    position: 'absolute',
+    backgroundColor: 'rgba(227, 97, 113, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(227, 97, 113, 0.5)',
+    shadowColor: '#E36171',
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
   },
 });
