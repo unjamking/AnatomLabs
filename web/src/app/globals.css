@@ -1,21 +1,81 @@
 @import "tailwindcss";
 
+@layer base {
+  @font-face {
+    font-family: "Inter";
+    src: url("https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_f8vvM72k0eI.woff2") format("woff2");
+    font-weight: 300;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: "Inter";
+    src: url("https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_f8vvM72k0eI.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: "Inter";
+    src: url("https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_f8vvM72k0eI.woff2") format("woff2");
+    font-weight: 500;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: "Inter";
+    src: url("https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_f8vvM72k0eI.woff2") format("woff2");
+    font-weight: 600;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: "Inter";
+    src: url("https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_f8vvM72k0eI.woff2") format("woff2");
+    font-weight: 700;
+    font-style: normal;
+  }
+}
+
 @theme inline {
   --color-bg: #0a0a0a;
-  --color-bg-card: #1a1a1a;
-  --color-bg-card-light: #2a2a2a;
+  --color-bg-card: #111111;
+  --color-bg-card-light: #1a1a1a;
   --color-border: #2a2a2a;
   --color-primary: #e74c3c;
   --color-primary-dark: #c0392b;
-  --color-success: #2ecc71;
-  --color-warning: #f39c12;
-  --color-info: #3498db;
-  --color-purple: #9b59b6;
-  --color-teal: #1abc9c;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-info: #3b82f6;
+  --color-purple: #a855f7;
+  --color-purple-dark: #8b3cb4;
+  --color-teal: #14b8a6;
   --color-text: #f5f5f7;
   --color-text-secondary: #888888;
   --color-text-tertiary: #666666;
   --font-sans: var(--font-inter);
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Arbitrary color utilities for dynamic content */
+@layer base {
+  .text-blue-400 { color: #60a5fa; }
+  .text-green-400 { color: #4ade80; }
+  .text-purple-400 { color: #c084fc; }
+  .text-emerald-400 { color: #34d399; }
+  .text-amber-400 { color: #fbbf24; }
+  .text-teal-400 { color: #2dd4bf; }
+
+  .bg-blue-500\/10 { background-color: rgba(59, 130, 246, 0.1); }
+  .bg-green-500\/10 { background-color: rgba(34, 197, 94, 0.1); }
+  .bg-purple-500\/10 { background-color: rgba(168, 85, 247, 0.1); }
+  .bg-emerald-500\/10 { background-color: rgba(52, 211, 153, 0.1); }
+
+  .bg-blue-700-10 { background-color: rgba(29, 78, 216, 0.1); }
+  .bg-emerald-600-10 { background-color: rgba(5, 150, 105, 0.1); }
+  .bg-violet-600-10 { background-color: rgba(124, 58, 237, 0.1); }
+  .bg-emerald-600 { background-color: #059669; }
+  .bg-teal-600 { background-color: #0d9488; }
 }
 
 * {
@@ -31,10 +91,11 @@ html {
 body {
   background: #0a0a0a;
   color: var(--color-text);
-  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
 body::before {
@@ -44,7 +105,7 @@ body::before {
   z-index: 9999;
   pointer-events: none;
   opacity: 0.025;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
   background-repeat: repeat;
   background-size: 256px 256px;
 }
