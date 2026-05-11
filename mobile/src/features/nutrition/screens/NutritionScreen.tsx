@@ -12,7 +12,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Animated, {
   useSharedValue,
   useAnimatedScrollHandler,
@@ -120,17 +120,25 @@ export default function NutritionScreen() {
     },
   });
 
+  const loadInitialData = useCallback(async () => {
+    await refreshAll();
+    await Promise.all([
+      loadWeightHistory(),
+      loadCalorieHistory(),
+      loadUserAllergies(),
+      loadDietPlans(),
+    ]);
+  }, [refreshAll]);
+
   useEffect(() => {
     loadInitialData();
-  }, []);
+  }, [loadInitialData]);
 
-  const loadInitialData = async () => {
-    await refreshAll();
-    loadWeightHistory();
-    loadCalorieHistory();
-    loadUserAllergies();
-    loadDietPlans();
-  };
+  useFocusEffect(
+    useCallback(() => {
+      loadInitialData();
+    }, [loadInitialData])
+  );
 
   const loadDietPlans = async () => {
     try {

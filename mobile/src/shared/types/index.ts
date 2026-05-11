@@ -383,6 +383,7 @@ export interface DailyReport {
   };
   training: {
     workoutsCompleted: number;
+    totalSets: number;
     totalVolume: number;
     totalWeight: number;
     totalReps: number;

@@ -203,7 +203,8 @@ export async function getDailyReport(date?: string): Promise<DailyReport> {
     },
     training: {
       workoutsCompleted: workoutCount,
-      totalVolume: totalSets,
+      totalSets,
+      totalVolume: totalWeight,
       totalWeight,
       totalReps,
       musclesTrained: Array.from(allMuscles),
@@ -248,7 +249,7 @@ export async function logActivity(activityData: Partial<ActivityLog>): Promise<v
   });
 }
 
-export async function updateTodayActivity(data: { steps?: number; waterIntake?: number; sleepHours?: number }): Promise<{ message: string; log: ActivityLog }> {
+export async function updateTodayActivity(data: { steps?: number; waterIntake?: number; sleepHours?: number; caloriesBurned?: number }): Promise<{ message: string; log: ActivityLog }> {
   const response = await apiClient.put<{ message: string; log: ActivityLog }>('/activity/today', data);
   return response.data;
 }

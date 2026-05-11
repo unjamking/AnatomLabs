@@ -12,6 +12,7 @@ import Animated, {
   useAnimatedScrollHandler,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import api from '../../../services/api';
 import { DailyReport, ReportSegment, DateRangeMode } from '../../../shared/types';
 import {
@@ -47,6 +48,7 @@ export default function ReportsScreen() {
   const [dateMode, setDateMode] = useState<DateRangeMode>('day');
   const [activeSegment, setActiveSegment] = useState<ReportSegment>('overview');
   const [showCalendar, setShowCalendar] = useState(false);
+  const [segmentRefreshKey, setSegmentRefreshKey] = useState(0);
 
   const scrollY = useSharedValue(0);
   const { trigger } = useHaptics();
@@ -59,13 +61,7 @@ export default function ReportsScreen() {
     },
   });
 
-  useEffect(() => {
-    if (activeSegment === 'overview') {
-      loadDailyData();
-    }
-  }, [selectedDate, activeSegment]);
-
-  const loadDailyData = async () => {
+  const loadDailyData = useCallback(async () => {
     try {
       setIsLoading(true);
       const dateStr = getDateString(selectedDate);
@@ -80,11 +76,27 @@ export default function ReportsScreen() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedDate]);
+
+  useEffect(() => {
+    if (activeSegment === 'overview') {
+      loadDailyData();
+    }
+  }, [activeSegment, loadDailyData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      setSegmentRefreshKey(prev => prev + 1);
+      if (activeSegment === 'overview') {
+        loadDailyData();
+      }
+    }, [activeSegment, loadDailyData])
+  );
 
   const onRefresh = async () => {
     setIsRefreshing(true);
     trigger('light');
+    setSegmentRefreshKey(prev => prev + 1);
     if (activeSegment === 'overview') {
       await loadDailyData();
     }
@@ -171,22 +183,22 @@ export default function ReportsScreen() {
   };
 
   const renderSegmentContent = () => {
-    switch (activeSegment) {
-      case 'overview':
-        return renderOverview();
-      case 'trends':
-        return <TrendsSegment />;
-      case 'training':
-        return <TrainingSegment />;
-      case 'health':
-        return <HealthSegment />;
-      case 'insights':
-        return <InsightsSegment />;
-      case 'share':
-        return <ShareSegment />;
-      default:
-        return null;
-    }
+      switch (activeSegment) {
+        case 'overview':
+          return renderOverview();
+        case 'trends':
+        return <TrendsSegment key={`trends-${segmentRefreshKey}`} />;
+        case 'training':
+        return <TrainingSegment key={`training-${segmentRefreshKey}`} />;
+        case 'health':
+        return <HealthSegment key={`health-${segmentRefreshKey}`} />;
+        case 'insights':
+        return <InsightsSegment key={`insights-${segmentRefreshKey}`} />;
+        case 'share':
+        return <ShareSegment key={`share-${segmentRefreshKey}`} />;
+        default:
+          return null;
+      }
   };
 
   const renderOverview = () => {

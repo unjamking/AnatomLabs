@@ -45,7 +45,7 @@ export default function TrainingSummaryCard({ report, delay = 300 }: Props) {
             </View>
             <View style={styles.divider} />
             <View style={styles.stat}>
-              <Text style={[styles.statValue, { color: COLORS.primary }]}>{training.totalVolume}</Text>
+              <Text style={[styles.statValue, { color: COLORS.primary }]}>{training.totalSets}</Text>
               <Text style={styles.statLabel}>Sets</Text>
             </View>
           </View>

@@ -20,6 +20,7 @@ import Animated, {
   interpolate,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../../features/auth/AuthContext';
 import api from '../../../services/api';
@@ -82,15 +83,9 @@ export default function HomeScreen({ navigation }: any) {
     },
   });
 
-  useEffect(() => {
-    loadStats();
-    checkStepTracking();
-    initializeAppleHealth();
-  }, []);
-
   const platformHealthService = Platform.OS === 'android' ? androidHealthService : appleHealthService;
 
-  const initializeAppleHealth = async () => {
+  const initializeAppleHealth = useCallback(async () => {
     if (!platformHealthService.isAvailable()) {
       setHealthKitStatus('unavailable');
       return;
@@ -107,9 +102,9 @@ export default function HomeScreen({ navigation }: any) {
     } catch (error) {
       setHealthKitStatus('unavailable');
     }
-  };
+  }, [platformHealthService]);
 
-  const fetchAppleHealthData = async () => {
+  const fetchAppleHealthData = useCallback(async () => {
     try {
       const data = await platformHealthService.getTodayHealthData();
       if (data) {
@@ -121,10 +116,10 @@ export default function HomeScreen({ navigation }: any) {
     } catch (error) {
       console.error('Error fetching health data:', error);
     }
-  };
+  }, [platformHealthService]);
 
   // Check if step tracking is available and has permission
-  const checkStepTracking = async () => {
+  const checkStepTracking = useCallback(async () => {
     try {
       const isAvailable = await healthService.isStepCountingAvailable();
       if (!isAvailable) {
@@ -142,7 +137,7 @@ export default function HomeScreen({ navigation }: any) {
       console.error('Error checking step tracking:', error);
       setStepTrackingStatus('unavailable');
     }
-  };
+  }, []);
 
   // Fetch steps from device health data
   const fetchStepsFromDevice = useCallback(async () => {
@@ -211,7 +206,7 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
 
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     setIsLoading(true);
     try {
       const [nutrition, bmi, activity] = await Promise.all([
@@ -237,24 +232,45 @@ export default function HomeScreen({ navigation }: any) {
           waterIntake: activity.waterIntake > 0 ? String(activity.waterIntake) : '',
           sleepHours: activity.sleepHours ? String(activity.sleepHours) : '',
         });
+        setHealthMetrics(prev => ({
+          ...prev,
+          estimatedCalories: activity.caloriesBurned > 0 ? activity.caloriesBurned : prev.estimatedCalories,
+        }));
       }
     } catch (error) {
       console.log('Stats load error:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadStats();
+    checkStepTracking();
+    initializeAppleHealth();
+  }, [checkStepTracking, initializeAppleHealth, loadStats]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadStats();
+      checkStepTracking();
+      if (platformHealthService.isAvailable()) {
+        fetchAppleHealthData();
+      }
+    }, [checkStepTracking, fetchAppleHealthData, loadStats, platformHealthService])
+  );
 
   const handleSaveActivity = async () => {
     setIsSavingActivity(true);
     try {
-      const data: { steps?: number; waterIntake?: number; sleepHours?: number } = {};
+      const data: { steps?: number; waterIntake?: number; sleepHours?: number; caloriesBurned?: number } = {};
       const trimmedSteps = activityInput.steps.trim();
       const trimmedWaterIntake = activityInput.waterIntake.trim();
       const trimmedSleepHours = activityInput.sleepHours.trim();
+      let parsedSteps: number | undefined;
 
       if (trimmedSteps) {
-        const parsedSteps = Number.parseInt(trimmedSteps, 10);
+        parsedSteps = Number.parseInt(trimmedSteps, 10);
         if (!Number.isFinite(parsedSteps) || parsedSteps < 0) {
           Alert.alert('Error', 'Steps must be a non-negative whole number.');
           return;
@@ -280,8 +296,24 @@ export default function HomeScreen({ navigation }: any) {
         data.sleepHours = parsedSleepHours;
       }
 
+      const derivedCaloriesBurned = appleHealthData?.activeCalories
+        ?? healthMetrics.estimatedCalories
+        ?? (
+          parsedSteps && user?.weight && user?.height
+            ? healthService.calculateCaloriesFromSteps(parsedSteps, user.weight, user.height).calories
+            : 0
+        );
+
+      if (derivedCaloriesBurned > 0) {
+        data.caloriesBurned = derivedCaloriesBurned;
+      }
+
       const result = await api.updateTodayActivity(data);
       setActivityData(result.log);
+      setHealthMetrics(prev => ({
+        ...prev,
+        estimatedCalories: result.log.caloriesBurned > 0 ? result.log.caloriesBurned : prev.estimatedCalories,
+      }));
       trigger('success');
       Alert.alert('Success', 'Activity logged successfully!');
     } catch (error: any) {

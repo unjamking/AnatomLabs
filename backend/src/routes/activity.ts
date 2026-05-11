@@ -80,11 +80,12 @@ router.get('/today', authenticateToken, async (req: AuthRequest, res: Response) 
 router.put('/today', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
-    const { steps, waterIntake, sleepHours } = req.body;
+    const { steps, waterIntake, sleepHours, caloriesBurned } = req.body;
     const { start, end } = getDayBounds(new Date());
     const normalizedSteps = normalizeNonNegativeInt(steps);
     const normalizedWaterIntake = normalizeNonNegativeInt(waterIntake);
     const normalizedSleepHours = normalizeNonNegativeFloat(sleepHours);
+    const normalizedCaloriesBurned = normalizeNonNegativeFloat(caloriesBurned);
 
     if (steps !== undefined && normalizedSteps === undefined) {
       return res.status(400).json({ error: 'steps must be a non-negative whole number' });
@@ -96,6 +97,10 @@ router.put('/today', authenticateToken, async (req: AuthRequest, res: Response) 
 
     if (sleepHours !== undefined && normalizedSleepHours === undefined) {
       return res.status(400).json({ error: 'sleepHours must be a non-negative number' });
+    }
+
+    if (caloriesBurned !== undefined && normalizedCaloriesBurned === undefined) {
+      return res.status(400).json({ error: 'caloriesBurned must be a non-negative number' });
     }
 
     // Find today's log or create one
@@ -114,7 +119,7 @@ router.put('/today', authenticateToken, async (req: AuthRequest, res: Response) 
           steps: normalizedSteps ?? 0,
           waterIntake: normalizedWaterIntake ?? 0,
           sleepHours: normalizedSleepHours ?? null,
-          caloriesBurned: 0,
+          caloriesBurned: normalizedCaloriesBurned ?? 0,
         }
       });
     } else {
@@ -124,6 +129,7 @@ router.put('/today', authenticateToken, async (req: AuthRequest, res: Response) 
           ...(steps !== undefined && { steps: normalizedSteps }),
           ...(waterIntake !== undefined && { waterIntake: normalizedWaterIntake }),
           ...(sleepHours !== undefined && { sleepHours: normalizedSleepHours }),
+          ...(caloriesBurned !== undefined && { caloriesBurned: normalizedCaloriesBurned }),
         }
       });
     }
