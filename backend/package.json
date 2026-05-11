@@ -2,6 +2,10 @@
   "name": "human-performance-science-backend",
   "version": "1.0.0",
   "description": "Backend for Human Performance Science Platform",
+  "engines": {
+    "node": "20.x",
+    "npm": "10.x"
+  },
   "main": "dist/server.js",
   "scripts": {
     "dev": "nodemon src/server.ts",

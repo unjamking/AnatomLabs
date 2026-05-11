@@ -1,6 +1,10 @@
 {
   "name": "anatomlabsplus",
   "private": true,
+  "engines": {
+    "node": "20.x",
+    "npm": "10.x"
+  },
   "workspaces": [
     "backend",
     "mobile",
