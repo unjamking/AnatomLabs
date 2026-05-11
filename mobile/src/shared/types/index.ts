@@ -160,7 +160,7 @@ export interface WorkoutDay {
 }
 
 export interface GenerateWorkoutRequest {
-  goal: 'muscle_gain' | 'fat_loss' | 'body_recomposition' | 'strength' | 'endurance' | 'sport_specific';
+  goal: 'muscle_gain' | 'fat_loss' | 'body_recomposition' | 'endurance' | 'general_fitness' | 'sport_specific';
   experienceLevel: 'beginner' | 'intermediate' | 'advanced';
   frequency: number; // 2-6 days per week
   availableEquipment: string[];

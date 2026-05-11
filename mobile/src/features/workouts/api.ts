@@ -5,8 +5,8 @@ export async function generateWorkout(request: GenerateWorkoutRequest): Promise<
   const backendRequest = {
     goal: request.goal,
     experienceLevel: request.experienceLevel,
-    daysPerWeek: request.frequency,
-    sport: request.sport,
+    daysPerWeek: Number(request.frequency),
+    sport: request.goal === 'sport_specific' ? request.sport : undefined,
   };
   const response = await apiClient.post('/workouts/generate', backendRequest);
   return response.data.plan;

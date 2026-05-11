@@ -101,7 +101,7 @@ function handleError(error: AxiosError): ApiError {
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: Platform.OS === 'web' ? 4000 : 60000,
+  timeout: Platform.OS === 'web' ? 15000 : 60000,
   headers: {
     'Content-Type': 'application/json',
   },

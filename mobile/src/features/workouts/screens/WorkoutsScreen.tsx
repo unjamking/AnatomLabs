@@ -447,7 +447,7 @@ export default function WorkoutsScreen() {
       const request: GenerateWorkoutRequest = {
         goal,
         experienceLevel,
-        frequency,
+        frequency: Number(frequency),
         availableEquipment: ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight'],
       };
       const plan = await api.generateWorkout(request);

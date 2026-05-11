@@ -5,125 +5,235 @@ import { generateWorkoutPlan, WorkoutGenerationParams } from '../services/workou
 
 const router = Router();
 
+const VALID_GOALS: WorkoutGenerationParams['goal'][] = [
+  'muscle_gain',
+  'fat_loss',
+  'body_recomposition',
+  'endurance',
+  'general_fitness',
+  'sport_specific',
+];
+
+const VALID_EXPERIENCE_LEVELS: WorkoutGenerationParams['experienceLevel'][] = [
+  'beginner',
+  'intermediate',
+  'advanced',
+];
+
+const VALID_SPORTS: NonNullable<WorkoutGenerationParams['sport']>[] = [
+  'football',
+  'basketball',
+  'volleyball',
+  'boxing',
+  'swimming',
+];
+
+function normalizeDaysPerWeek(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number.parseInt(value.trim(), 10);
+    return Number.isInteger(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function normalizeOptionalSport(value: unknown): WorkoutGenerationParams['sport'] {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  return VALID_SPORTS.includes(normalized as NonNullable<WorkoutGenerationParams['sport']>)
+    ? (normalized as NonNullable<WorkoutGenerationParams['sport']>)
+    : null;
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is string => typeof item === 'string')
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
 // POST /api/workouts/generate - Generate a new workout plan
 router.post('/generate', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { goal, experienceLevel, daysPerWeek, sport } = req.body;
     const userId = req.userId!;
+    const normalizedDaysPerWeek = normalizeDaysPerWeek(daysPerWeek);
+    const normalizedSport = normalizeOptionalSport(sport);
 
-    if (!goal || !experienceLevel || !daysPerWeek) {
+    if (!goal || !experienceLevel || normalizedDaysPerWeek === null) {
       return res.status(400).json({
         error: 'goal, experienceLevel, and daysPerWeek are required'
       });
     }
 
-    if (daysPerWeek < 2 || daysPerWeek > 6) {
+    if (!VALID_GOALS.includes(goal)) {
+      return res.status(400).json({
+        error: 'Invalid goal selected'
+      });
+    }
+
+    if (!VALID_EXPERIENCE_LEVELS.includes(experienceLevel)) {
+      return res.status(400).json({
+        error: 'Invalid experience level selected'
+      });
+    }
+
+    if (normalizedDaysPerWeek < 2 || normalizedDaysPerWeek > 6) {
       return res.status(400).json({
         error: 'daysPerWeek must be between 2 and 6'
       });
     }
 
-    // Fetch user's health profile for filtering
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        physicalLimitations: true,
-        healthConditions: true
-      }
-    });
+    if (goal === 'sport_specific' && !normalizedSport) {
+      return res.status(400).json({
+        error: 'A supported sport is required for sport-specific workout plans'
+      });
+    }
 
-    const params: WorkoutGenerationParams = {
-      goal,
-      experienceLevel,
-      daysPerWeek,
-      sport: sport || null,
-      // Include health context if user has conditions
-      healthContext: (user?.physicalLimitations?.length || user?.healthConditions?.length)
-        ? {
-            physicalLimitations: user.physicalLimitations || [],
-            medicalConditions: user.healthConditions || []
-          }
-        : undefined
-    };
-
-    const workoutSplit = generateWorkoutPlan(params);
-
-    const workoutPlan = await prisma.workoutPlan.create({
-      data: {
-        userId,
-        name: workoutSplit.name,
-        goal,
-        daysPerWeek,
-        experienceLevel,
-        sport,
-        description: workoutSplit.description,
-        rationale: workoutSplit.rationale,
-      }
-    });
-
-    const dbExercises = await prisma.exercise.findMany({
-      select: { id: true, name: true }
-    });
-    const exerciseNameToId = new Map<string, string>();
-    dbExercises.forEach(e => {
-      exerciseNameToId.set(e.name.toLowerCase(), e.id);
-    });
-
-    const workouts = await Promise.all(
-      workoutSplit.workouts.map(async (day) => {
-        const workout = await prisma.workout.create({
-          data: {
-            workoutPlanId: workoutPlan.id,
-            dayName: day.dayName,
-            dayOfWeek: day.dayOfWeek,
-            split: day.split,
-            focus: day.focus,
-          }
-        });
-
-        await Promise.all(
-          day.exercises.map(async (ex, index) => {
-            const matchedId = exerciseNameToId.get(ex.exerciseName.toLowerCase()) || null;
-            await prisma.workoutExercise.create({
-              data: {
-                workoutId: workout.id,
-                exerciseName: ex.exerciseName,
-                exerciseId: matchedId,
-                sets: ex.sets,
-                reps: ex.reps,
-                rest: ex.rest,
-                notes: ex.notes,
-                targetMuscles: ex.targetMuscles,
-                orderIndex: index,
-              }
-            });
-          })
-        );
-
-        return workout;
-      })
-    );
-
-    const fullPlan = await prisma.workoutPlan.findUnique({
-      where: { id: workoutPlan.id },
-      include: {
-        workouts: {
-          include: {
-            exercises: {
-              orderBy: { orderIndex: 'asc' }
-            }
-          },
-          orderBy: { dayOfWeek: 'asc' }
+    const fullPlan = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: {
+          physicalLimitations: true,
+          healthConditions: true
         }
+      });
+
+      const params: WorkoutGenerationParams = {
+        goal,
+        experienceLevel,
+        daysPerWeek: normalizedDaysPerWeek,
+        sport: normalizedSport,
+        healthContext: (user?.physicalLimitations?.length || user?.healthConditions?.length)
+          ? {
+              physicalLimitations: normalizeStringArray(user?.physicalLimitations),
+              medicalConditions: normalizeStringArray(user?.healthConditions)
+            }
+          : undefined
+      };
+
+      const workoutSplit = generateWorkoutPlan(params);
+      if (!workoutSplit.workouts.length) {
+        return {
+          fullPlan: null,
+          healthModifications: workoutSplit.healthModifications || null,
+        };
       }
+
+      const workoutPlan = await tx.workoutPlan.create({
+        data: {
+          userId,
+          name: workoutSplit.name,
+          goal,
+          daysPerWeek: normalizedDaysPerWeek,
+          experienceLevel,
+          sport: normalizedSport,
+          description: workoutSplit.description,
+          rationale: workoutSplit.rationale,
+        }
+      });
+
+      const dbExercises = await tx.exercise.findMany({
+        select: { id: true, name: true }
+      });
+      const exerciseNameToId = new Map<string, string>();
+      dbExercises.forEach(e => {
+        exerciseNameToId.set(e.name.toLowerCase(), e.id);
+      });
+
+      await Promise.all(
+        workoutSplit.workouts.map(async (day) => {
+          const workout = await tx.workout.create({
+            data: {
+              workoutPlanId: workoutPlan.id,
+              dayName: day.dayName,
+              dayOfWeek: day.dayOfWeek,
+              split: day.split,
+              focus: normalizeStringArray(day.focus),
+            }
+          });
+
+          if (!day.exercises.length) {
+            return workout;
+          }
+
+          await Promise.all(
+            day.exercises.map(async (ex, index) => {
+              const exerciseName = typeof ex.exerciseName === 'string' && ex.exerciseName.trim()
+                ? ex.exerciseName.trim()
+                : `Exercise ${index + 1}`;
+              const matchedId = exerciseNameToId.get(exerciseName.toLowerCase()) || null;
+
+              await tx.workoutExercise.create({
+                data: {
+                  workoutId: workout.id,
+                  exerciseName,
+                  exerciseId: matchedId,
+                  sets: Number.isInteger(ex.sets) && ex.sets > 0 ? ex.sets : 3,
+                  reps: typeof ex.reps === 'string' && ex.reps.trim() ? ex.reps.trim() : '8-12',
+                  rest: Number.isInteger(ex.rest) && ex.rest > 0 ? ex.rest : 90,
+                  notes: typeof ex.notes === 'string' ? ex.notes.trim() || null : null,
+                  targetMuscles: normalizeStringArray(ex.targetMuscles),
+                  orderIndex: index,
+                }
+              });
+            })
+          );
+
+          return workout;
+        })
+      );
+
+      return {
+        fullPlan: await tx.workoutPlan.findUnique({
+          where: { id: workoutPlan.id },
+          include: {
+            workouts: {
+              include: {
+                exercises: {
+                  orderBy: { orderIndex: 'asc' }
+                }
+              },
+              orderBy: { dayOfWeek: 'asc' }
+            }
+          }
+        }),
+        healthModifications: workoutSplit.healthModifications || null,
+      };
     });
+
+    if (!fullPlan.fullPlan) {
+      return res.status(422).json({
+        error: 'Unable to generate a valid workout plan for the selected options'
+      });
+    }
 
     res.status(201).json({
       message: 'Workout plan generated successfully',
-      plan: fullPlan,
-      healthModifications: workoutSplit.healthModifications || null
+      plan: fullPlan.fullPlan,
+      healthModifications: fullPlan.healthModifications
     });
   } catch (error) {
+    console.error('Generate workout error:', {
+      userId: req.userId,
+      body: req.body,
+      error,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
