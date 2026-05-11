@@ -6,6 +6,8 @@ interface MuscleBodyDiagramProps {
   primaryMuscles: string[];
   secondaryMuscles?: string[];
   height?: number;
+  showLegend?: boolean;
+  showLabels?: boolean;
 }
 
 const MUSCLE_NAME_MAP: Record<string, string[]> = {
@@ -273,69 +275,92 @@ export default function MuscleBodyDiagram({
   primaryMuscles,
   secondaryMuscles = [],
   height = 220,
+  showLegend = true,
+  showLabels = true,
 }: MuscleBodyDiagramProps) {
   const primaryIds = resolveMuscleIds(primaryMuscles);
   const secondaryIds = resolveMuscleIds(secondaryMuscles);
-  const svgH = height - 24;
+  const svgH = showLegend ? height - 42 : height - 12;
   const svgW = svgH * 0.52;
 
   return (
     <View style={[styles.container, { height }]}>
-      <View style={styles.figure}>
-        <Text style={styles.label}>FRONT</Text>
-        <View style={styles.svgWrap}>
-          <Svg width={svgW} height={svgH} viewBox="26 0 48 96">
-            <RenderBody
-              muscles={FRONT_MUSCLES}
-              outline={FRONT_OUTLINE}
-              fill={FRONT_FILL}
-              primaryIds={primaryIds}
-              secondaryIds={secondaryIds}
-              gradId="f"
-            />
-          </Svg>
+      <View style={styles.figuresRow}>
+        <View style={styles.figure}>
+          {showLabels ? <Text style={styles.label}>FRONT</Text> : null}
+          <View style={styles.svgWrap}>
+            <Svg width={svgW} height={svgH} viewBox="26 0 48 96">
+              <RenderBody
+                muscles={FRONT_MUSCLES}
+                outline={FRONT_OUTLINE}
+                fill={FRONT_FILL}
+                primaryIds={primaryIds}
+                secondaryIds={secondaryIds}
+                gradId="f"
+              />
+            </Svg>
+          </View>
+        </View>
+
+        <View style={styles.separator} />
+
+        <View style={styles.figure}>
+          {showLabels ? <Text style={styles.label}>BACK</Text> : null}
+          <View style={styles.svgWrap}>
+            <Svg width={svgW} height={svgH} viewBox="26 0 48 96">
+              <RenderBody
+                muscles={BACK_MUSCLES}
+                outline={BACK_OUTLINE}
+                fill={BACK_FILL}
+                primaryIds={primaryIds}
+                secondaryIds={secondaryIds}
+                gradId="b"
+              />
+            </Svg>
+          </View>
         </View>
       </View>
 
-      <View style={styles.separator} />
-
-      <View style={styles.figure}>
-        <Text style={styles.label}>BACK</Text>
-        <View style={styles.svgWrap}>
-          <Svg width={svgW} height={svgH} viewBox="26 0 48 96">
-            <RenderBody
-              muscles={BACK_MUSCLES}
-              outline={BACK_OUTLINE}
-              fill={BACK_FILL}
-              primaryIds={primaryIds}
-              secondaryIds={secondaryIds}
-              gradId="b"
-            />
-          </Svg>
+      {showLegend ? (
+        <View style={styles.legendRow}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, styles.primaryDot]} />
+            <Text style={styles.legendText}>Primary</Text>
+          </View>
+          {secondaryIds.size > 0 ? (
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, styles.secondaryDot]} />
+              <Text style={styles.legendText}>Secondary</Text>
+            </View>
+          ) : null}
         </View>
-      </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    justifyContent: 'space-between',
+    paddingTop: 4,
+    paddingBottom: 8,
+  },
+  figuresRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'flex-end',
-    paddingTop: 4,
-    paddingBottom: 8,
+    flex: 1,
   },
   figure: {
     alignItems: 'center',
     flex: 1,
   },
   label: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#555566',
+    color: '#7f8ba3',
     letterSpacing: 1.5,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   svgWrap: {
     alignItems: 'center',
@@ -347,5 +372,36 @@ const styles = StyleSheet.create({
     backgroundColor: '#2a2a38',
     alignSelf: 'center',
     borderRadius: 1,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 18,
+    marginTop: 6,
+    paddingTop: 10,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  primaryDot: {
+    backgroundColor: '#2ecc71',
+  },
+  secondaryDot: {
+    backgroundColor: 'rgba(46, 204, 113, 0.35)',
+    borderWidth: 1,
+    borderColor: 'rgba(46, 204, 113, 0.55)',
+  },
+  legendText: {
+    fontSize: 12,
+    color: '#c8d0e0',
+    fontWeight: '600',
   },
 });

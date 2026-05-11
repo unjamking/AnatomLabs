@@ -388,7 +388,7 @@ export default function ExerciseDetailModal({
                   <MuscleBodyDiagram
                     primaryMuscles={exercise.primaryMuscles}
                     secondaryMuscles={exercise.secondaryMuscles}
-                    height={220}
+                    height={280}
                   />
                   <View style={styles.muscleLabels}>
                     {exercise.activationDetails.map((detail, i) => {
