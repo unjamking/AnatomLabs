@@ -13,6 +13,35 @@ function getDayBounds(date: Date) {
   return { start, end };
 }
 
+function normalizeNonNegativeInt(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  const normalized = typeof value === 'string' ? Number.parseInt(value.trim(), 10) : value;
+  if (typeof normalized !== 'number' || !Number.isFinite(normalized) || !Number.isInteger(normalized) || normalized < 0) {
+    return undefined;
+  }
+
+  return normalized;
+}
+
+function normalizeNonNegativeFloat(value: unknown): number | null | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  const normalized = typeof value === 'string'
+    ? Number.parseFloat(value.trim().replace(',', '.'))
+    : value;
+
+  if (typeof normalized !== 'number' || !Number.isFinite(normalized) || normalized < 0) {
+    return undefined;
+  }
+
+  return normalized;
+}
+
 // GET /api/activity/today - Get or create today's activity log
 router.get('/today', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
@@ -53,6 +82,21 @@ router.put('/today', authenticateToken, async (req: AuthRequest, res: Response) 
     const userId = req.userId!;
     const { steps, waterIntake, sleepHours } = req.body;
     const { start, end } = getDayBounds(new Date());
+    const normalizedSteps = normalizeNonNegativeInt(steps);
+    const normalizedWaterIntake = normalizeNonNegativeInt(waterIntake);
+    const normalizedSleepHours = normalizeNonNegativeFloat(sleepHours);
+
+    if (steps !== undefined && normalizedSteps === undefined) {
+      return res.status(400).json({ error: 'steps must be a non-negative whole number' });
+    }
+
+    if (waterIntake !== undefined && normalizedWaterIntake === undefined) {
+      return res.status(400).json({ error: 'waterIntake must be a non-negative whole number' });
+    }
+
+    if (sleepHours !== undefined && normalizedSleepHours === undefined) {
+      return res.status(400).json({ error: 'sleepHours must be a non-negative number' });
+    }
 
     // Find today's log or create one
     let todayLog = await prisma.activityLog.findFirst({
@@ -67,9 +111,9 @@ router.put('/today', authenticateToken, async (req: AuthRequest, res: Response) 
         data: {
           userId,
           date: new Date(),
-          steps: steps || 0,
-          waterIntake: waterIntake || 0,
-          sleepHours: sleepHours || null,
+          steps: normalizedSteps ?? 0,
+          waterIntake: normalizedWaterIntake ?? 0,
+          sleepHours: normalizedSleepHours ?? null,
           caloriesBurned: 0,
         }
       });
@@ -77,9 +121,9 @@ router.put('/today', authenticateToken, async (req: AuthRequest, res: Response) 
       todayLog = await prisma.activityLog.update({
         where: { id: todayLog.id },
         data: {
-          ...(steps !== undefined && { steps }),
-          ...(waterIntake !== undefined && { waterIntake }),
-          ...(sleepHours !== undefined && { sleepHours }),
+          ...(steps !== undefined && { steps: normalizedSteps }),
+          ...(waterIntake !== undefined && { waterIntake: normalizedWaterIntake }),
+          ...(sleepHours !== undefined && { sleepHours: normalizedSleepHours }),
         }
       });
     }
@@ -135,27 +179,52 @@ router.post('/log', authenticateToken, async (req: AuthRequest, res: Response) =
   try {
     const userId = req.userId!;
     const { activityType, duration, intensity, caloriesBurned, steps, waterIntake, sleepHours, date, notes } = req.body;
+    const normalizedDuration = normalizeNonNegativeInt(duration);
+    const normalizedSteps = normalizeNonNegativeInt(steps);
+    const normalizedWaterIntake = normalizeNonNegativeInt(waterIntake);
+    const normalizedSleepHours = normalizeNonNegativeFloat(sleepHours);
+    const normalizedCaloriesBurned = normalizeNonNegativeFloat(caloriesBurned);
 
     // For general activity logging (workouts, runs, etc.), require activityType and duration
     // For daily tracking (steps, water, sleep), allow without those fields
     const isGeneralActivity = activityType || duration;
 
-    if (isGeneralActivity && (!activityType || !duration)) {
+    if (isGeneralActivity && (!activityType || normalizedDuration === undefined)) {
       return res.status(400).json({
         error: 'activityType and duration are required for activity logging'
       });
+    }
+
+    if (duration !== undefined && normalizedDuration === undefined) {
+      return res.status(400).json({ error: 'duration must be a non-negative whole number' });
+    }
+
+    if (steps !== undefined && normalizedSteps === undefined) {
+      return res.status(400).json({ error: 'steps must be a non-negative whole number' });
+    }
+
+    if (waterIntake !== undefined && normalizedWaterIntake === undefined) {
+      return res.status(400).json({ error: 'waterIntake must be a non-negative whole number' });
+    }
+
+    if (sleepHours !== undefined && normalizedSleepHours === undefined) {
+      return res.status(400).json({ error: 'sleepHours must be a non-negative number' });
+    }
+
+    if (caloriesBurned !== undefined && normalizedCaloriesBurned === undefined) {
+      return res.status(400).json({ error: 'caloriesBurned must be a non-negative number' });
     }
 
     const log = await prisma.activityLog.create({
       data: {
         userId,
         activityType: activityType || null,
-        duration: duration || null,
+        duration: normalizedDuration ?? null,
         intensity: intensity || 'moderate',
-        caloriesBurned: caloriesBurned || 0,
-        steps: steps || 0,
-        waterIntake: waterIntake || 0,
-        sleepHours: sleepHours || null,
+        caloriesBurned: normalizedCaloriesBurned ?? 0,
+        steps: normalizedSteps ?? 0,
+        waterIntake: normalizedWaterIntake ?? 0,
+        sleepHours: normalizedSleepHours ?? null,
         date: date ? new Date(date) : new Date(),
         notes: notes || null,
       }

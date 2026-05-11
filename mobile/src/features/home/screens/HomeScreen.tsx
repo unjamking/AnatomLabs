@@ -249,24 +249,44 @@ export default function HomeScreen({ navigation }: any) {
     setIsSavingActivity(true);
     try {
       const data: { steps?: number; waterIntake?: number; sleepHours?: number } = {};
+      const trimmedSteps = activityInput.steps.trim();
+      const trimmedWaterIntake = activityInput.waterIntake.trim();
+      const trimmedSleepHours = activityInput.sleepHours.trim();
 
-      if (activityInput.steps) {
-        data.steps = parseInt(activityInput.steps, 10);
+      if (trimmedSteps) {
+        const parsedSteps = Number.parseInt(trimmedSteps, 10);
+        if (!Number.isFinite(parsedSteps) || parsedSteps < 0) {
+          Alert.alert('Error', 'Steps must be a non-negative whole number.');
+          return;
+        }
+        data.steps = parsedSteps;
       }
-      if (activityInput.waterIntake) {
-        data.waterIntake = parseInt(activityInput.waterIntake, 10);
+
+      if (trimmedWaterIntake) {
+        const parsedWaterIntake = Number.parseInt(trimmedWaterIntake, 10);
+        if (!Number.isFinite(parsedWaterIntake) || parsedWaterIntake < 0) {
+          Alert.alert('Error', 'Water intake must be a non-negative whole number.');
+          return;
+        }
+        data.waterIntake = parsedWaterIntake;
       }
-      if (activityInput.sleepHours) {
-        data.sleepHours = parseFloat(activityInput.sleepHours);
+
+      if (trimmedSleepHours) {
+        const parsedSleepHours = Number.parseFloat(trimmedSleepHours.replace(',', '.'));
+        if (!Number.isFinite(parsedSleepHours) || parsedSleepHours < 0) {
+          Alert.alert('Error', 'Sleep hours must be a non-negative number.');
+          return;
+        }
+        data.sleepHours = parsedSleepHours;
       }
 
       const result = await api.updateTodayActivity(data);
       setActivityData(result.log);
       trigger('success');
       Alert.alert('Success', 'Activity logged successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving activity:', error);
-      Alert.alert('Error', 'Failed to save activity. Please try again.');
+      Alert.alert('Error', error.message || 'Failed to save activity. Please try again.');
     } finally {
       setIsSavingActivity(false);
     }
@@ -335,6 +355,13 @@ export default function HomeScreen({ navigation }: any) {
       icon: 'analytics-outline' as const,
       screen: 'Reports',
       color: '#9b59b6',
+    },
+    {
+      title: 'Anatomy',
+      subtitle: 'Interactive body explorer',
+      icon: 'body-outline' as const,
+      screen: 'AnatomyExplorer',
+      color: '#e67e22',
     },
   ];
 
