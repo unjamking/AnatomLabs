@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -17,6 +18,7 @@ import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import InteractiveBodyMap, { AnatomyCanvasView, AnatomyThemeId } from '../components/InteractiveBodyMap';
 import MuscleBodyDiagram from '../components/MuscleBodyDiagram';
 import {
+  ANATOMY_THEMES,
   ANATOMY_REGIONS,
   MUSCLE_REGIONS,
   getAnatomyRegion,
@@ -125,6 +127,7 @@ export default function AnatomyExplorerScreen() {
   const [themeId] = useState<AnatomyThemeId>('neon');
   const [searchQuery, setSearchQuery] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState<DifficultyFilter>('all');
+  const theme = ANATOMY_THEMES[themeId];
 
   useEffect(() => {
     loadBodyParts();
