@@ -20,7 +20,6 @@ import Animated, {
   interpolate,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../../features/auth/AuthContext';
 import api from '../../../services/api';
@@ -41,6 +40,7 @@ import {
 } from '../../../shared/components/animations';
 import BMICard from '../../../features/profile/components/BMICard';
 import { BMIResult, ActivityLog } from '../../../shared/types';
+import { useAutoRefreshOnFocus } from '../../../hooks/useAutoRefreshOnFocus';
 
 function initials(name: string) {
   if (!name) return '??';
@@ -250,14 +250,15 @@ export default function HomeScreen({ navigation }: any) {
     initializeAppleHealth();
   }, [checkStepTracking, initializeAppleHealth, loadStats]);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadStats();
-      checkStepTracking();
+  useAutoRefreshOnFocus(
+    useCallback(async () => {
+      await loadStats();
+      await checkStepTracking();
       if (platformHealthService.isAvailable()) {
-        fetchAppleHealthData();
+        await fetchAppleHealthData();
       }
-    }, [checkStepTracking, fetchAppleHealthData, loadStats, platformHealthService])
+    }, [checkStepTracking, fetchAppleHealthData, loadStats, platformHealthService]),
+    { intervalMs: 45000 }
   );
 
   const handleSaveActivity = async () => {

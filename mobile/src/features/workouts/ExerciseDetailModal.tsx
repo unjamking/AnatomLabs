@@ -11,6 +11,12 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import MuscleBodyDiagram from '../anatomy/components/MuscleBodyDiagram';
 import {
+  extractExerciseMuscles,
+  extractExerciseSecondaryMuscles,
+  getExerciseMuscleSummary,
+  hasSharedExerciseMuscles,
+} from './utils/exerciseMuscles';
+import {
   AnimatedButton,
   AnimatedCard,
   AnimatedListItem,
@@ -71,36 +77,44 @@ async function getCachedExercises(): Promise<any[]> {
 }
 
 function parseExerciseFromApi(raw: any): ParsedExercise {
-  const bodyParts = raw.bodyParts || [];
-  const sorted = [...bodyParts].sort((a: any, b: any) => (a.activationRank || 0) - (b.activationRank || 0));
-  const primaryCutoff = Math.max(1, Math.ceil(sorted.length / 2));
-
-  const primaryMuscles: string[] = [];
-  const secondaryMuscles: string[] = [];
+  const primaryMuscles = extractExerciseMuscles(raw);
+  const secondaryMuscles = extractExerciseSecondaryMuscles(raw);
   const activationDetails: ParsedExercise['activationDetails'] = [];
+  const activationNames = new Set<string>();
 
-  sorted.forEach((bp: any, index: number) => {
-    const name = bp.bodyPart?.name || 'Unknown';
-    const isPrimary = index < primaryCutoff;
-    if (isPrimary) {
-      primaryMuscles.push(name);
-    } else {
-      secondaryMuscles.push(name);
-    }
+  (raw.bodyParts || []).forEach((bp: any) => {
+    const name = bp.bodyPart?.name || bp.name || 'Unknown';
+    const isPrimary = primaryMuscles.some((muscle) => muscle.toLowerCase() === name.toLowerCase());
     activationDetails.push({
       name,
       rank: bp.activationRank || bp.activationRanking || 0,
       description: bp.activationDescription || '',
       isPrimary,
     });
+    activationNames.add(name.toLowerCase());
   });
 
-  if (primaryMuscles.length === 0 && raw.primaryMuscles?.length > 0) {
-    primaryMuscles.push(...raw.primaryMuscles);
-  }
-  if (secondaryMuscles.length === 0 && raw.secondaryMuscles?.length > 0) {
-    secondaryMuscles.push(...raw.secondaryMuscles);
-  }
+  primaryMuscles.forEach((name, index) => {
+    if (!activationNames.has(name.toLowerCase())) {
+      activationDetails.push({
+        name,
+        rank: index + 1,
+        description: '',
+        isPrimary: true,
+      });
+    }
+  });
+
+  secondaryMuscles.forEach((name, index) => {
+    if (!activationNames.has(name.toLowerCase())) {
+      activationDetails.push({
+        name,
+        rank: primaryMuscles.length + index + 1,
+        description: '',
+        isPrimary: false,
+      });
+    }
+  });
 
   let instructions: string[] = [];
   if (Array.isArray(raw.instructions)) {
@@ -222,18 +236,12 @@ export default function ExerciseDetailModal({
             try {
               const allExercises = await getCachedExercises();
               const related = allExercises
-                .filter((e: any) => {
-                  const eMuscles = (e.bodyParts || []).map((bp: any) => bp.bodyPart?.name?.toLowerCase());
-                  const myMuscles = fallback.primaryMuscles.map(m => m.toLowerCase());
-                  return eMuscles.some((m: string) => myMuscles.includes(m)) ||
-                    e.primaryMuscles?.some((m: string) => myMuscles.includes(m.toLowerCase()));
-                })
+                .filter((e: any) => hasSharedExerciseMuscles(e, fallback.primaryMuscles))
                 .slice(0, 4)
                 .map((e: any) => ({
                   id: e.id,
                   name: e.name,
-                  muscles: (e.bodyParts || []).map((bp: any) => bp.bodyPart?.name).filter(Boolean).join(', ') ||
-                    e.primaryMuscles?.join(', ') || 'Unknown',
+                  muscles: getExerciseMuscleSummary(e),
                 }));
               setRelatedExercises(related);
             } catch {
@@ -254,17 +262,13 @@ export default function ExerciseDetailModal({
           const related = allExercises
             .filter((e: any) => {
               if (e.id === id) return false;
-              const eMuscles = (e.bodyParts || []).map((bp: any) => bp.bodyPart?.name?.toLowerCase());
-              const myMuscles = parsed.primaryMuscles.map(m => m.toLowerCase());
-              return eMuscles.some((m: string) => myMuscles.includes(m)) ||
-                e.primaryMuscles?.some((m: string) => myMuscles.includes(m.toLowerCase()));
+              return hasSharedExerciseMuscles(e, parsed.primaryMuscles);
             })
             .slice(0, 4)
             .map((e: any) => ({
               id: e.id,
               name: e.name,
-              muscles: (e.bodyParts || []).map((bp: any) => bp.bodyPart?.name).filter(Boolean).join(', ') ||
-                e.primaryMuscles?.join(', ') || 'Unknown',
+              muscles: getExerciseMuscleSummary(e),
             }));
           setRelatedExercises(related);
         } catch {
@@ -395,7 +399,7 @@ export default function ExerciseDetailModal({
                       const percent = getActivationPercent(detail.rank, exercise.activationDetails.length);
                       return (
                         <View key={i} style={styles.muscleDetailRow}>
-                          <View style={[styles.muscleDot, { backgroundColor: detail.isPrimary ? '#2ecc71' : '#2ecc7160' }]} />
+                          <View style={[styles.muscleDot, { backgroundColor: detail.isPrimary ? '#FF6B79' : '#FFB4BC' }]} />
                           <Text style={styles.muscleName}>{detail.name.replace(/_/g, ' ')}</Text>
                           <View style={styles.miniBarBg}>
                             <View style={[styles.miniBarFill, { width: `${percent}%` }]} />
@@ -620,13 +624,13 @@ const styles = StyleSheet.create({
   },
   miniBarFill: {
     height: '100%',
-    backgroundColor: '#2ecc71',
+    backgroundColor: '#FF6B79',
     borderRadius: 3,
   },
   percentText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#2ecc71',
+    color: '#E36171',
     width: 32,
     textAlign: 'right',
   },

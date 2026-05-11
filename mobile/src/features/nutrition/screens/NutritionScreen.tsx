@@ -12,7 +12,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import Animated, {
   useSharedValue,
   useAnimatedScrollHandler,
@@ -37,6 +37,7 @@ import {
 } from '../../../shared/components/animations';
 import { Food, FoodLog, NutritionPlan, WeightLog } from '../../../shared/types';
 import api from '../../../services/api';
+import { useAutoRefreshOnFocus } from '../../../hooks/useAutoRefreshOnFocus';
 
 // Micronutrient daily values (RDA)
 const MICRONUTRIENT_RDA: { [key: string]: { name: string; unit: string; target: number; color: string } } = {
@@ -134,11 +135,7 @@ export default function NutritionScreen() {
     loadInitialData();
   }, [loadInitialData]);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadInitialData();
-    }, [loadInitialData])
-  );
+  useAutoRefreshOnFocus(loadInitialData, { intervalMs: 45000 });
 
   const loadDietPlans = async () => {
     try {
@@ -1592,9 +1589,10 @@ export default function NutritionScreen() {
             <GlassCard style={{ padding: 14, marginBottom: 16 }}>
               <Text style={[styles.sectionTitle, { marginBottom: 12 }]}>Goal</Text>
               {[
-                { id: 'lose_fat', label: 'Lose Fat', icon: 'trending-down', desc: 'Calorie deficit for fat loss' },
-                { id: 'build_muscle', label: 'Build Muscle', icon: 'trending-up', desc: 'Calorie surplus for muscle gain' },
-                { id: 'maintain', label: 'Maintain Weight', icon: 'remove', desc: 'Stay at current body composition' },
+                { id: 'cut', label: 'Cut', icon: 'trending-down', desc: 'Calorie deficit to reduce body fat' },
+                { id: 'maintain', label: 'Maintain', icon: 'remove', desc: 'Hold calories steady and maintain weight' },
+                { id: 'muscle_gain', label: 'Build Muscle', icon: 'barbell', desc: 'Calorie surplus to support muscle growth' },
+                { id: 'endurance', label: 'Fuel Endurance', icon: 'flash', desc: 'Support longer sessions and recovery' },
               ].map((option) => (
                 <TouchableOpacity
                   key={option.id}

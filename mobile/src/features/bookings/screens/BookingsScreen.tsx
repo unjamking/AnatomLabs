@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Booking } from '../../../shared/types';
 import api from '../../../services/api';
 import { COLORS } from '../../../shared/components/animations';
+import { useAutoRefreshOnFocus } from '../../../hooks/useAutoRefreshOnFocus';
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING: '#f39c12',
@@ -38,6 +39,8 @@ export default function BookingsScreen() {
   }, []);
 
   useEffect(() => { loadBookings(); }, [loadBookings]);
+
+  useAutoRefreshOnFocus(loadBookings, { intervalMs: 30000 });
 
   const handleCancel = (booking: Booking) => {
     Alert.alert('Cancel Booking', 'Are you sure you want to cancel this booking?', [

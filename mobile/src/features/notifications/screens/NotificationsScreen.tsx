@@ -23,6 +23,7 @@ import {
   useHaptics,
   COLORS,
 } from '../../../shared/components/animations';
+import { useAutoRefreshOnFocus } from '../../../hooks/useAutoRefreshOnFocus';
 
 const NOTIFICATION_ICONS: Record<string, { icon: string; color: string }> = {
   FOLLOW: { icon: 'person-add', color: '#3498db' },
@@ -68,6 +69,13 @@ export default function NotificationsScreen() {
   useEffect(() => {
     loadNotifications();
   }, [loadNotifications]);
+
+  useAutoRefreshOnFocus(
+    useCallback(async () => {
+      await loadNotifications(true);
+    }, [loadNotifications]),
+    { intervalMs: 30000 }
+  );
 
   const handleRefresh = () => {
     setRefreshing(true);

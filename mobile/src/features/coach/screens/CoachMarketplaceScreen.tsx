@@ -23,6 +23,7 @@ import { FadeIn, useHaptics, SlideIn } from '../../../shared/components/animatio
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../../features/auth/AuthContext';
 import { COLORS, SPRING_CONFIG, ANIMATION_DURATION } from '../../../shared/components/animations/config';
+import { useAutoRefreshOnFocus } from '../../../hooks/useAutoRefreshOnFocus';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const CARD_W = (SW - 48) / 2;
@@ -208,6 +209,21 @@ export default function CoachMarketplaceScreen() {
     loadCoaches();
     if (!user?.isCoach) api.getMyApplication().then(() => setHasApp(true)).catch(() => {});
   }, [loadCoaches]);
+
+  useAutoRefreshOnFocus(
+    useCallback(async () => {
+      await loadCoaches();
+      if (!user?.isCoach) {
+        try {
+          await api.getMyApplication();
+          setHasApp(true);
+        } catch {
+          setHasApp(false);
+        }
+      }
+    }, [loadCoaches, user?.isCoach]),
+    { intervalMs: 45000 }
+  );
 
   useEffect(() => {
     if (storyVisible && storyCoach?.stories) {

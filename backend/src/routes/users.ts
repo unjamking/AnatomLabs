@@ -8,6 +8,7 @@ import { isImageSafe } from '../services/imageModeration';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { toNutritionGoal, toStoredGoal } from '../utils/goalMapping';
 
 const avatarStorage = multer.diskStorage({
   destination: 'uploads/avatars',
@@ -423,12 +424,15 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
       return res.status(404).json({ error: 'User not found' });
     }
 
+    const storedGoal = goal === undefined ? undefined : toStoredGoal(goal);
+
     let bmiData: { bmi?: number; bmiCategory?: string } = {};
     const newWeight = weight !== undefined ? weight : existingUser.weight;
     const newHeight = height !== undefined ? height : existingUser.height;
+    const goalForBmi = storedGoal ?? toStoredGoal(existingUser.goal);
 
     if (canCalculateBMI(newWeight, newHeight)) {
-      const bmiResult = analyzeBMI(newWeight!, newHeight!, goal || existingUser.goal || undefined);
+      const bmiResult = analyzeBMI(newWeight!, newHeight!, goalForBmi ? toNutritionGoal(goalForBmi) : undefined);
       bmiData = {
         bmi: bmiResult.bmi,
         bmiCategory: bmiResult.categoryId
@@ -445,7 +449,7 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
           ...(weight !== undefined && { weight }),
           ...(height !== undefined && { height }),
           ...(activityLevel && { activityLevel }),
-          ...(goal && { goal }),
+          ...(storedGoal !== undefined && { goal: storedGoal }),
           ...(avatar !== undefined && { avatar }),
           ...bmiData
         },

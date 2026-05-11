@@ -22,6 +22,7 @@ import { useAuth } from '../../../features/auth/AuthContext';
 import api from '../../../services/api';
 import { Booking } from '../../../shared/types';
 import { useHaptics } from '../../../shared/components/animations';
+import { useAutoRefreshOnFocus } from '../../../hooks/useAutoRefreshOnFocus';
 
 const { width: SW } = Dimensions.get('window');
 type Segment = 'overview' | 'bookings' | 'messages' | 'settings';
@@ -154,6 +155,8 @@ export default function CoachDashboardScreen() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useAutoRefreshOnFocus(loadData, { intervalMs: 30000 });
 
   useEffect(() => {
     avatarPulse.value = withRepeat(

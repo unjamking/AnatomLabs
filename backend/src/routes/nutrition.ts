@@ -10,6 +10,7 @@ import {
   getWeightTrend
 } from '../services/nutritionSuggestions';
 import { recognizeFoodFromImage } from '../services/foodRecognition';
+import { toNutritionGoal } from '../utils/goalMapping';
 
 const router = Router();
 
@@ -32,8 +33,7 @@ router.post('/calculate', authenticateToken, async (req: AuthRequest, res: Respo
       });
     }
 
-    const validGoals = ['muscle_gain', 'fat_loss', 'body_recomposition', 'endurance', 'general_fitness', 'sport_specific'];
-    const fitnessGoal = validGoals.includes(user.goal ?? '') ? user.goal! : 'general_fitness';
+    const fitnessGoal = toNutritionGoal(user.goal);
 
     const physicalData: UserPhysicalData = {
       age: user.age,
@@ -194,14 +194,13 @@ router.get('/logs/today', authenticateToken, async (req: AuthRequest, res: Respo
 
     let remaining = null;
     let healthAdjustments = null;
-    const validGoals = ['muscle_gain', 'fat_loss', 'body_recomposition', 'endurance', 'general_fitness', 'sport_specific'];
     if (user?.age && user?.gender && user?.weight && user?.height && user?.activityLevel) {
       const healthProfile: UserHealthProfile = {
         medicalConditions: user.healthConditions as string[] || [],
         dietaryPreferences: user.dietaryPreferences as string[] || []
       };
 
-      const fitnessGoal = validGoals.includes(user.goal ?? '') ? user.goal! : 'general_fitness';
+      const fitnessGoal = toNutritionGoal(user.goal);
       const targets = calculateHealthAwareNutritionPlan({
         age: user.age,
         gender: user.gender as 'male' | 'female',
@@ -277,7 +276,6 @@ router.get('/logs/history', authenticateToken, async (req: AuthRequest, res: Res
       where: { id: userId }
     });
 
-    const validGoalsHist = ['muscle_gain', 'fat_loss', 'body_recomposition', 'endurance', 'general_fitness', 'sport_specific'];
     let targetCalories = 2000;
     if (user?.age && user?.gender && user?.weight && user?.height && user?.activityLevel) {
       const healthProfile: UserHealthProfile = {
@@ -285,7 +283,7 @@ router.get('/logs/history', authenticateToken, async (req: AuthRequest, res: Res
         dietaryPreferences: user.dietaryPreferences as string[] || []
       };
 
-      const fitnessGoal = validGoalsHist.includes(user.goal ?? '') ? user.goal! : 'general_fitness';
+      const fitnessGoal = toNutritionGoal(user.goal);
       const targets = calculateHealthAwareNutritionPlan({
         age: user.age,
         gender: user.gender as 'male' | 'female',
@@ -603,8 +601,7 @@ router.get('/suggestions', authenticateToken, async (req: AuthRequest, res: Resp
       dietaryPreferences: user.dietaryPreferences as string[] || []
     };
 
-    const validGoalsSug = ['muscle_gain', 'fat_loss', 'body_recomposition', 'endurance', 'general_fitness', 'sport_specific'];
-    const fitnessGoalSug = validGoalsSug.includes(user.goal ?? '') ? user.goal! : 'general_fitness';
+    const fitnessGoalSug = toNutritionGoal(user.goal);
     const targets = calculateHealthAwareNutritionPlan({
       age: user.age,
       gender: user.gender as 'male' | 'female',

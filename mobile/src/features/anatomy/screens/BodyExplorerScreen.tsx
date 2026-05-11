@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import api from '../../../services/api';
+import InteractiveBodyMap from '../components/InteractiveBodyMap';
 import {
   AnimatedCard,
   AnimatedButton,
@@ -55,41 +56,32 @@ const TABS: TabConfig[] = [
   { id: 'nerves', label: 'Nerves', icon: 'flash-outline', filterType: 'nerve', color: '#f1c40f' },
 ];
 
-// Placeholder for 3D view
-function BodyViewer3DPlaceholder({ onSwitchToList, onLaunch3D }: { onSwitchToList: () => void; onLaunch3D: () => void }) {
+function InlineBodyViewer({ onLaunch3D }: { onLaunch3D: () => void }) {
   const { trigger } = useHaptics();
 
   return (
     <FadeIn>
-      <GlassCard style={styles.placeholderCard}>
-        <View style={styles.placeholderIconContainer}>
-          <Ionicons name="body-outline" size={56} color={COLORS.primary} />
-        </View>
-        <Text style={styles.placeholderTitle}>3D Human Anatomy</Text>
-        <Text style={styles.placeholderText}>
-          Explore an interactive 3D model of the human body with detailed anatomical structures.
-        </Text>
+      <GlassCard style={styles.inlineViewerCard}>
+        <InteractiveBodyMap
+          height={320}
+          mode="explore"
+          onMusclePress={(id, name) => {
+            if (id) {
+              trigger('medium');
+              onLaunch3D();
+            }
+          }}
+        />
         <AnimatedButton
-          title="Launch 3D Viewer"
+          title="Open Human Body Explorer"
           variant="primary"
-          size="large"
+          size="medium"
           onPress={() => {
             trigger('medium');
             onLaunch3D();
           }}
-          style={styles.launch3DButton}
-          icon={<Ionicons name="cube" size={20} color="#fff" style={{ marginRight: 8 }} />}
-        />
-        <AnimatedButton
-          title="Browse List Instead"
-          variant="ghost"
-          size="medium"
-          onPress={() => {
-            trigger('light');
-            onSwitchToList();
-          }}
-          style={styles.placeholderButton}
-          textStyle={{ color: COLORS.textSecondary }}
+          style={styles.fullExplorerButton}
+          icon={<Ionicons name="expand-outline" size={18} color="#fff" style={{ marginRight: 8 }} />}
         />
       </GlassCard>
     </FadeIn>
@@ -205,6 +197,8 @@ export default function BodyExplorerScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isMountedRef = useRef(true);
+  const detailRequestRef = useRef(0);
 
   const scrollY = useSharedValue(0);
   const { trigger } = useHaptics();
@@ -221,6 +215,10 @@ export default function BodyExplorerScreen() {
 
   useEffect(() => {
     loadBodyParts();
+    return () => {
+      isMountedRef.current = false;
+      detailRequestRef.current += 1;
+    };
   }, []);
 
   const loadBodyParts = async () => {
@@ -228,12 +226,18 @@ export default function BodyExplorerScreen() {
       setIsLoading(true);
       setError(null);
       const data = await api.getMuscles();
-      setAllBodyParts(data || []);
+      if (isMountedRef.current) {
+        setAllBodyParts(data || []);
+      }
     } catch (err: any) {
       console.error('Failed to load body parts:', err);
-      setError(err?.message || 'Failed to load anatomy data. Make sure the backend server is running.');
+      if (isMountedRef.current) {
+        setError(err?.message || 'Failed to load anatomy data. Make sure the backend server is running.');
+      }
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -246,14 +250,22 @@ export default function BodyExplorerScreen() {
   };
 
   const handleBodyPartPress = async (bodyPartId: string) => {
+    const requestId = ++detailRequestRef.current;
     try {
       trigger('light');
-      const bodyPart = await api.getMuscle(bodyPartId);
-      const exercises = await api.getExercises(bodyPartId);
+      const [bodyPart, exercises] = await Promise.all([
+        api.getMuscle(bodyPartId),
+        api.getExercises(bodyPartId),
+      ]);
+      if (!isMountedRef.current || requestId !== detailRequestRef.current) {
+        return;
+      }
       setSelectedBodyPart({ ...bodyPart, exercises });
       setShowDetail(true);
     } catch (error) {
-      trigger('error');
+      if (isMountedRef.current && requestId === detailRequestRef.current) {
+        trigger('error');
+      }
       console.error('Failed to load body part details:', error);
     }
   };
@@ -384,10 +396,7 @@ export default function BodyExplorerScreen() {
         </FadeIn>
 
         {viewMode === '3d' ? (
-          <BodyViewer3DPlaceholder
-            onSwitchToList={() => handleViewModeChange('list')}
-            onLaunch3D={handleLaunch3D}
-          />
+          <InlineBodyViewer onLaunch3D={handleLaunch3D} />
         ) : (
           <>
             {/* Category Tabs */}
@@ -747,40 +756,13 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: 'center',
   },
-  // Placeholder
-  placeholderCard: {
+  inlineViewerCard: {
     alignItems: 'center',
-    padding: 40,
+    padding: 12,
+    paddingTop: 16,
   },
-  placeholderIconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: `${COLORS.primary}15`,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  placeholderTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginTop: 16,
-    marginBottom: 12,
-  },
-  placeholderText: {
-    fontSize: 15,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 28,
-    paddingHorizontal: 10,
-  },
-  placeholderButton: {
-    minWidth: 160,
-  },
-  launch3DButton: {
-    marginBottom: 12,
+  fullExplorerButton: {
+    marginTop: 8,
     minWidth: 200,
   },
   // Error Card

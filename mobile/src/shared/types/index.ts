@@ -7,7 +7,7 @@ export interface User {
   gender: 'male' | 'female';
   weight: number; // kg
   height: number; // cm
-  goal: 'muscle_gain' | 'fat_loss' | 'body_recomposition' | 'general_fitness' | 'endurance' | 'sport_specific' | 'maintenance' | 'strength' | string;
+  goal: 'muscle_gain' | 'endurance' | 'cut' | 'maintain' | 'sport_specific' | 'fat_loss' | 'body_recomposition' | 'general_fitness' | 'maintenance' | 'strength' | string;
   experienceLevel: 'beginner' | 'intermediate' | 'advanced';
   activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
   bmi?: number;
@@ -160,7 +160,7 @@ export interface WorkoutDay {
 }
 
 export interface GenerateWorkoutRequest {
-  goal: 'muscle_gain' | 'fat_loss' | 'body_recomposition' | 'endurance' | 'general_fitness' | 'sport_specific';
+  goal: 'muscle_gain' | 'endurance' | 'cut' | 'maintain' | 'sport_specific';
   experienceLevel: 'beginner' | 'intermediate' | 'advanced';
   frequency: number; // 2-6 days per week
   availableEquipment: string[];
@@ -435,6 +435,7 @@ export interface WorkoutExerciseLog {
   exerciseId: string;
   exerciseName: string;
   muscleGroup: string;
+  targetMuscles?: string[];
   sets: WorkoutSet[];
   notes?: string;
   supersetWith?: string; // exercise id
@@ -504,6 +505,7 @@ export interface WorkoutTemplate {
     exerciseId: string;
     exerciseName: string;
     muscleGroup: string;
+    targetMuscles?: string[];
     targetSets: number;
     targetReps: string; // e.g., "8-12"
     restTime: number;

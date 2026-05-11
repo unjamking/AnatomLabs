@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,6 @@ import Animated, {
   useAnimatedScrollHandler,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
 import api from '../../../services/api';
 import { DailyReport, ReportSegment, DateRangeMode } from '../../../shared/types';
 import {
@@ -38,6 +37,14 @@ import {
   InsightsSegment,
   ShareSegment,
 } from '../../../features/reports/components';
+import { useAutoRefreshOnFocus } from '../../../hooks/useAutoRefreshOnFocus';
+
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 export default function ReportsScreen() {
   const [report, setReport] = useState<DailyReport | null>(null);
@@ -49,11 +56,18 @@ export default function ReportsScreen() {
   const [activeSegment, setActiveSegment] = useState<ReportSegment>('overview');
   const [showCalendar, setShowCalendar] = useState(false);
   const [segmentRefreshKey, setSegmentRefreshKey] = useState(0);
+  const isMountedRef = useRef(true);
+  const requestIdRef = useRef(0);
 
   const scrollY = useSharedValue(0);
   const { trigger } = useHaptics();
 
-  const getDateString = (date: Date) => date.toISOString().split('T')[0];
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      requestIdRef.current += 1;
+    };
+  }, []);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event: any) => {
@@ -62,19 +76,27 @@ export default function ReportsScreen() {
   });
 
   const loadDailyData = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     try {
-      setIsLoading(true);
-      const dateStr = getDateString(selectedDate);
-      const [dailyData, injuryData] = await Promise.all([
-        api.getDailyReport(dateStr),
-        api.getInjuryRisk(),
-      ]);
+      if (isMountedRef.current) {
+        setIsLoading(true);
+      }
+      const dateStr = formatLocalDate(selectedDate);
+      const dailyData = await api.getDailyReport(dateStr);
+      if (!isMountedRef.current || requestId !== requestIdRef.current) {
+        return;
+      }
       setReport(dailyData);
-      setInjuryRisk(injuryData);
+      setInjuryRisk(dailyData.injuryRisk);
     } catch (error) {
+      if (!isMountedRef.current || requestId !== requestIdRef.current) {
+        return;
+      }
       console.error('Failed to load report:', error);
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current && requestId === requestIdRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [selectedDate]);
 
@@ -84,13 +106,14 @@ export default function ReportsScreen() {
     }
   }, [activeSegment, loadDailyData]);
 
-  useFocusEffect(
-    useCallback(() => {
+  useAutoRefreshOnFocus(
+    useCallback(async () => {
       setSegmentRefreshKey(prev => prev + 1);
       if (activeSegment === 'overview') {
-        loadDailyData();
+        await loadDailyData();
       }
-    }, [activeSegment, loadDailyData])
+    }, [activeSegment, loadDailyData]),
+    { intervalMs: 45000 }
   );
 
   const onRefresh = async () => {

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActiveWorkout,
@@ -12,6 +12,7 @@ import {
   Exercise,
 } from '../../../shared/types';
 import * as workoutsApi from '../api';
+import { getExerciseTargetMuscles, getPrimaryExerciseMuscle } from '../utils/exerciseMuscles';
 
 interface WorkoutTrackingContextType {
   // Active workout state
@@ -152,6 +153,7 @@ export function WorkoutTrackingProvider({ children }: { children: ReactNode }) {
       exerciseId: ex.exerciseId || ex.id || `plan_ex_${index}`,
       exerciseName: ex.exerciseName || ex.name,
       muscleGroup: ex.targetMuscles?.[0] || ex.muscleGroup || 'other',
+      targetMuscles: ex.targetMuscles || (ex.muscleGroup ? [ex.muscleGroup] : []),
       sets: [], // Start empty, user will add sets
       notes: ex.notes,
       orderIndex: index,
@@ -183,6 +185,7 @@ export function WorkoutTrackingProvider({ children }: { children: ReactNode }) {
       exerciseId: ex.exerciseId,
       exerciseName: ex.exerciseName,
       muscleGroup: ex.muscleGroup,
+      targetMuscles: ex.targetMuscles || (ex.muscleGroup ? [ex.muscleGroup] : []),
       sets: [], // Start empty
       notes: ex.notes,
       orderIndex: index,
@@ -229,8 +232,9 @@ export function WorkoutTrackingProvider({ children }: { children: ReactNode }) {
       let exVolume = 0;
       let exMaxWeight = 0;
       let exMaxReps = 0;
+      const targetMuscles = exercise.targetMuscles?.length ? exercise.targetMuscles : [exercise.muscleGroup];
 
-      musclesWorked.add(exercise.muscleGroup);
+      targetMuscles.filter(Boolean).forEach((muscle) => musclesWorked.add(muscle));
       exercise.sets.forEach(set => {
         if (!set.isWarmup) {
           totalVolume += set.weight * set.reps;
@@ -262,6 +266,7 @@ export function WorkoutTrackingProvider({ children }: { children: ReactNode }) {
       return {
         exerciseName: exercise.exerciseName,
         muscleGroup: exercise.muscleGroup,
+        targetMuscles,
         sets: exercise.sets,
         totalVolume: exVolume,
         maxWeight: exMaxWeight,
@@ -327,7 +332,8 @@ export function WorkoutTrackingProvider({ children }: { children: ReactNode }) {
       id: generateId(),
       exerciseId: exercise.id,
       exerciseName: exercise.name,
-      muscleGroup: exercise.primaryMuscles[0] || 'other',
+      muscleGroup: getPrimaryExerciseMuscle(exercise),
+      targetMuscles: getExerciseTargetMuscles(exercise),
       sets: [],
       orderIndex: activeWorkout.exercises.length,
     };
@@ -462,13 +468,14 @@ export function WorkoutTrackingProvider({ children }: { children: ReactNode }) {
         exerciseId: e.exerciseId,
         exerciseName: e.exerciseName,
         muscleGroup: e.muscleGroup,
+        targetMuscles: e.targetMuscles || (e.muscleGroup ? [e.muscleGroup] : []),
         targetSets: e.sets.filter(s => !s.isWarmup).length || 3,
         targetReps: '8-12',
         restTime: 90,
         notes: e.notes,
       })),
       estimatedDuration: Math.floor(workoutTimer / 60) || 60,
-      muscleGroups: [...new Set(activeWorkout.exercises.map(e => e.muscleGroup))],
+      muscleGroups: [...new Set(activeWorkout.exercises.flatMap(e => e.targetMuscles?.length ? e.targetMuscles : [e.muscleGroup]))],
       useCount: 0,
     };
 
@@ -500,6 +507,7 @@ export function WorkoutTrackingProvider({ children }: { children: ReactNode }) {
       exerciseId: templateExercise.exerciseId,
       exerciseName: templateExercise.exerciseName,
       muscleGroup: templateExercise.muscleGroup,
+      targetMuscles: templateExercise.targetMuscles || (templateExercise.muscleGroup ? [templateExercise.muscleGroup] : []),
       sets: [], // Empty sets to be filled during workout
       notes: templateExercise.notes,
       orderIndex: index,
@@ -555,9 +563,10 @@ export function WorkoutTrackingProvider({ children }: { children: ReactNode }) {
             musclesWorked: session.musclesWorked || [],
             exercises: (session.exercises || []).map((ex: any) => ({
               id: ex.id,
-              exerciseId: ex.id,
+              exerciseId: ex.exerciseId || ex.id || ex.exerciseName,
               exerciseName: ex.exerciseName,
-              muscleGroup: ex.muscleGroup,
+              muscleGroup: ex.muscleGroup || ex.targetMuscles?.[0] || 'other',
+              targetMuscles: ex.targetMuscles || (ex.muscleGroup ? [ex.muscleGroup] : []),
               sets: ex.sets || [],
               orderIndex: ex.orderIndex,
             })),
@@ -766,6 +775,10 @@ export function WorkoutTrackingProvider({ children }: { children: ReactNode }) {
 
     setStats(newStats);
   }, [workoutHistory]);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
 
   // Get last workout data for an exercise
   const getLastWorkoutForExercise = useCallback((exerciseId: string): WorkoutExerciseLog | null => {

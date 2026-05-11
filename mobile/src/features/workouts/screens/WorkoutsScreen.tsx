@@ -36,9 +36,19 @@ import {
   COLORS,
   SPRING_CONFIG,
 } from '../../../shared/components/animations';
+import { useAutoRefreshOnFocus } from '../../../hooks/useAutoRefreshOnFocus';
+import { extractExerciseMuscles, getExerciseMuscleSummary } from '../utils/exerciseMuscles';
 
 // Format time as mm:ss or hh:mm:ss
 const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core', 'Cardio', 'Full Body'];
+const PERFORMANCE_GOAL_OPTIONS = [
+  { label: 'Muscle Gain', value: 'muscle_gain' },
+  { label: 'Endurance & Conditioning', value: 'endurance' },
+] as const;
+
+const normalizeWorkoutGoal = (value?: string | null) => (
+  value === 'muscle_gain' ? 'muscle_gain' : 'endurance'
+);
 
 const formatTime = (seconds: number): string => {
   const hrs = Math.floor(seconds / 3600);
@@ -201,7 +211,7 @@ export default function WorkoutsScreen() {
     if (existingPlan) {
       setEditingPlanId(existingPlan.id);
       setPlanName(existingPlan.name || '');
-      setPlanGoal(existingPlan.goal || 'muscle_gain');
+      setPlanGoal(normalizeWorkoutGoal(existingPlan.goal));
       const days = existingPlan.workouts?.length || existingPlan.daysPerWeek || 3;
       setPlanDays(days);
       setPlanWorkouts(
@@ -345,13 +355,9 @@ export default function WorkoutsScreen() {
     try {
       const raw = await api.getExercises();
       const data = raw.map((e: any) => {
-        const muscles = (e.bodyParts || [])
-          .sort((a: any, b: any) => (a.activationRank || 99) - (b.activationRank || 99))
-          .map((bp: any) => bp.bodyPart?.name || bp.name)
-          .filter(Boolean);
         return {
           ...e,
-          primaryMuscles: muscles.length ? muscles : e.primaryMuscles || [],
+          primaryMuscles: extractExerciseMuscles(e),
         };
       });
       const allMuscles = [...new Set(data.flatMap((e: any) => e.primaryMuscles as string[]))].sort();
@@ -385,10 +391,20 @@ export default function WorkoutsScreen() {
   useEffect(() => {
     loadWorkouts();
     loadHistory();
-    loadStats();
     loadRecentWorkoutNames();
     loadCustomExercises();
   }, []);
+
+  useAutoRefreshOnFocus(
+    useCallback(async () => {
+      await loadWorkouts();
+      await loadHistory();
+      await loadStats();
+      await loadRecentWorkoutNames();
+      await loadCustomExercises();
+    }, [loadCustomExercises, loadHistory, loadRecentWorkoutNames, loadStats, loadWorkouts]),
+    { intervalMs: 45000 }
+  );
 
   const loadWorkouts = async () => {
     try {
@@ -404,7 +420,10 @@ export default function WorkoutsScreen() {
 
   const loadExercises = async (query: string = '') => {
     try {
-      const data = await api.getExercises();
+      const data = (await api.getExercises()).map((exercise: any) => ({
+        ...exercise,
+        primaryMuscles: extractExerciseMuscles(exercise),
+      }));
       const filtered = query
         ? data.filter(e =>
             e.name.toLowerCase().includes(query.toLowerCase()) ||
@@ -570,7 +589,7 @@ export default function WorkoutsScreen() {
               <AnimatedListItem key={exercise.id} index={index} enterFrom="bottom">
                 <GlassCard style={styles.exerciseCard}>
                   <View style={styles.exerciseHeader}>
-                    <TouchableOpacity style={styles.exerciseInfo} onPress={() => { setSelectedExerciseId(exercise.exerciseId); setSelectedExerciseName(exercise.exerciseName); setSelectedExerciseData({ targetMuscles: exercise.muscleGroup ? [exercise.muscleGroup] : [] }); }}>
+                    <TouchableOpacity style={styles.exerciseInfo} onPress={() => { setSelectedExerciseId(exercise.exerciseId); setSelectedExerciseName(exercise.exerciseName); setSelectedExerciseData({ targetMuscles: exercise.targetMuscles || (exercise.muscleGroup ? [exercise.muscleGroup] : []) }); }}>
                       <View style={styles.exerciseNameRow}>
                         <Text style={styles.exerciseName}>{exercise.exerciseName}</Text>
                         <Ionicons name="information-circle-outline" size={16} color={COLORS.primary} />
@@ -706,7 +725,7 @@ export default function WorkoutsScreen() {
                     </TouchableOpacity>
                     <View style={styles.exerciseSelectContent}>
                       <Text style={styles.exerciseSelectName}>{exercise.name}</Text>
-                      <Text style={styles.exerciseSelectMuscle}>{exercise.primaryMuscles?.join(', ') || 'Unknown'}</Text>
+                      <Text style={styles.exerciseSelectMuscle}>{getExerciseMuscleSummary(exercise)}</Text>
                     </View>
                     <Ionicons name="add-circle" size={22} color={COLORS.primary} />
                   </AnimatedCard>
@@ -1062,11 +1081,9 @@ export default function WorkoutsScreen() {
                 <Text style={styles.formLabel}>Goal</Text>
                 <View style={styles.pickerContainer}>
                   <Picker selectedValue={goal} onValueChange={(v) => { trigger('selection'); setGoal(v); }} style={styles.picker}>
-                    <Picker.Item label="Muscle Gain" value="muscle_gain" />
-                    <Picker.Item label="Fat Loss" value="fat_loss" />
-                    <Picker.Item label="Body Recomposition" value="body_recomposition" />
-                    <Picker.Item label="General Fitness" value="general_fitness" />
-                    <Picker.Item label="Endurance" value="endurance" />
+                    {PERFORMANCE_GOAL_OPTIONS.map((option) => (
+                      <Picker.Item key={option.value} label={option.label} value={option.value} />
+                    ))}
                   </Picker>
                 </View>
               </GlassCard>
@@ -1348,11 +1365,9 @@ export default function WorkoutsScreen() {
               <Text style={styles.formLabel}>Goal</Text>
               <View style={styles.pickerContainer}>
                 <Picker selectedValue={planGoal} onValueChange={(v) => { trigger('selection'); setPlanGoal(v); }} style={styles.picker}>
-                  <Picker.Item label="Muscle Gain" value="muscle_gain" />
-                  <Picker.Item label="Fat Loss" value="fat_loss" />
-                  <Picker.Item label="Body Recomposition" value="body_recomposition" />
-                  <Picker.Item label="General Fitness" value="general_fitness" />
-                  <Picker.Item label="Endurance" value="endurance" />
+                  {PERFORMANCE_GOAL_OPTIONS.map((option) => (
+                    <Picker.Item key={option.value} label={option.label} value={option.value} />
+                  ))}
                 </Picker>
               </View>
 
@@ -1548,7 +1563,7 @@ export default function WorkoutsScreen() {
                 >
                   <View style={styles.exerciseSelectContent}>
                     <Text style={styles.exerciseSelectName}>{exercise.name}</Text>
-                    <Text style={styles.exerciseSelectMuscle}>{exercise.primaryMuscles?.join(', ')}</Text>
+                    <Text style={styles.exerciseSelectMuscle}>{getExerciseMuscleSummary(exercise)}</Text>
                   </View>
                   <Ionicons name="add-circle" size={22} color={COLORS.primary} />
                 </AnimatedCard>

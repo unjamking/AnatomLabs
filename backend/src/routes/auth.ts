@@ -5,6 +5,7 @@ import { generateToken, authenticateToken, AuthRequest } from '../middleware/aut
 import { analyzeBMI, canCalculateBMI } from '../services/bmiCalculator';
 import { containsInappropriateContent, getContentError } from '../services/contentFilter';
 import { generateVerificationCode, sendVerificationEmail, sendPasswordResetEmail } from '../services/emailService';
+import { toNutritionGoal, toStoredGoal } from '../utils/goalMapping';
 
 const router = Router();
 
@@ -68,9 +69,11 @@ router.post('/register', async (req: Request, res: Response) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const storedGoal = goal === undefined ? null : toStoredGoal(goal);
+
     let bmiData: { bmi?: number; bmiCategory?: string } = {};
     if (canCalculateBMI(weight, height)) {
-      const bmiResult = analyzeBMI(weight, height, goal || undefined);
+      const bmiResult = analyzeBMI(weight, height, storedGoal ? toNutritionGoal(storedGoal) : undefined);
       bmiData = {
         bmi: bmiResult.bmi,
         bmiCategory: bmiResult.categoryId
@@ -103,7 +106,7 @@ router.post('/register', async (req: Request, res: Response) => {
         height: height || null,
         activityLevel: activityLevel || null,
         experienceLevel: experienceLevel || null,
-        goal: goal || null,
+        goal: storedGoal,
         ...bmiData,
         healthConditions: validateArray(healthConditions),
         physicalLimitations: validateArray(physicalLimitations),

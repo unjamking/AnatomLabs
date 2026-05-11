@@ -353,10 +353,10 @@ export default function RegisterScreen({ navigation }: Props) {
             dropdownIconColor="#e74c3c"
           >
             <Picker.Item label="Build Muscle" value="muscle_gain" color="#fff" />
-            <Picker.Item label="Lose Fat" value="fat_loss" color="#fff" />
-            <Picker.Item label="Body Recomposition (Build Muscle + Lose Fat)" value="body_recomposition" color="#fff" />
-            <Picker.Item label="General Fitness" value="general_fitness" color="#fff" />
-            <Picker.Item label="Build Endurance" value="endurance" color="#fff" />
+            <Picker.Item label="Endurance & Conditioning" value="endurance" color="#fff" />
+            <Picker.Item label="Cut (Nutrition Focus)" value="cut" color="#fff" />
+            <Picker.Item label="Maintain (Nutrition Focus)" value="maintain" color="#fff" />
+            <Picker.Item label="Sport-Specific Performance" value="sport_specific" color="#fff" />
           </Picker>
         </View>
       </Animated.View>

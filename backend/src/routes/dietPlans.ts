@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros } from '../services/nutritionCalculator';
+import { toNutritionGoal } from '../utils/goalMapping';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 
@@ -102,13 +103,14 @@ router.post('/generate', authenticateToken, async (req: AuthRequest, res: Respon
       return res.status(400).json({ error: 'Complete your profile (age, gender, weight, height) to generate a diet plan' });
     }
 
-    const effectiveGoal = dietGoal || user.goal || 'general_fitness';
+    const effectiveGoal = dietGoal || user.goal || 'maintain';
+    const normalizedNutritionGoal = toNutritionGoal(effectiveGoal);
 
     const userData = {
       age: user.age, gender: user.gender as 'male' | 'female',
       weight: user.weight, height: user.height,
       activityLevel: (user.activityLevel || 'moderate') as any,
-      fitnessGoal: effectiveGoal as any,
+      fitnessGoal: normalizedNutritionGoal as any,
     };
 
     const bmr = calculateBMR(userData);
@@ -124,13 +126,10 @@ router.post('/generate', authenticateToken, async (req: AuthRequest, res: Respon
         targetCalories = Math.round(tdee + surplus);
       }
     } else {
-      targetCalories = calculateTargetCalories(tdee, effectiveGoal);
+      targetCalories = calculateTargetCalories(tdee, normalizedNutritionGoal);
     }
 
-    const macroGoal = dietGoal === 'build_muscle' ? 'muscle_gain'
-      : dietGoal === 'lose_fat' ? 'fat_loss'
-      : dietGoal === 'maintain' ? 'general_fitness'
-      : effectiveGoal;
+    const macroGoal = toNutritionGoal(dietGoal || effectiveGoal);
     const macros = calculateMacros(targetCalories, userData.weight, macroGoal);
 
     const foods = await prisma.food.findMany({ take: 300 });

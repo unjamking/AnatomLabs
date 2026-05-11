@@ -2,17 +2,11 @@ import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { generateWorkoutPlan, WorkoutGenerationParams } from '../services/workoutGenerator';
+import { normalizePublicGoal, toWorkoutGoal } from '../utils/goalMapping';
 
 const router = Router();
 
-const VALID_GOALS: WorkoutGenerationParams['goal'][] = [
-  'muscle_gain',
-  'fat_loss',
-  'body_recomposition',
-  'endurance',
-  'general_fitness',
-  'sport_specific',
-];
+const VALID_GOALS = ['muscle_gain', 'endurance', 'cut', 'maintain', 'sport_specific'] as const;
 
 const VALID_EXPERIENCE_LEVELS: WorkoutGenerationParams['experienceLevel'][] = [
   'beginner',
@@ -72,16 +66,17 @@ router.post('/generate', authenticateToken, async (req: AuthRequest, res: Respon
   try {
     const { goal, experienceLevel, daysPerWeek, sport } = req.body;
     const userId = req.userId!;
+    const normalizedGoal = normalizePublicGoal(goal);
     const normalizedDaysPerWeek = normalizeDaysPerWeek(daysPerWeek);
     const normalizedSport = normalizeOptionalSport(sport);
 
-    if (!goal || !experienceLevel || normalizedDaysPerWeek === null) {
+    if (!normalizedGoal || !experienceLevel || normalizedDaysPerWeek === null) {
       return res.status(400).json({
         error: 'goal, experienceLevel, and daysPerWeek are required'
       });
     }
 
-    if (!VALID_GOALS.includes(goal)) {
+    if (!VALID_GOALS.includes(normalizedGoal)) {
       return res.status(400).json({
         error: 'Invalid goal selected'
       });
@@ -99,7 +94,7 @@ router.post('/generate', authenticateToken, async (req: AuthRequest, res: Respon
       });
     }
 
-    if (goal === 'sport_specific' && !normalizedSport) {
+    if (normalizedGoal === 'sport_specific' && !normalizedSport) {
       return res.status(400).json({
         error: 'A supported sport is required for sport-specific workout plans'
       });
@@ -115,7 +110,7 @@ router.post('/generate', authenticateToken, async (req: AuthRequest, res: Respon
       });
 
       const params: WorkoutGenerationParams = {
-        goal,
+        goal: toWorkoutGoal(normalizedGoal),
         experienceLevel,
         daysPerWeek: normalizedDaysPerWeek,
         sport: normalizedSport,
@@ -139,7 +134,7 @@ router.post('/generate', authenticateToken, async (req: AuthRequest, res: Respon
         data: {
           userId,
           name: workoutSplit.name,
-          goal,
+          goal: normalizedGoal,
           daysPerWeek: normalizedDaysPerWeek,
           experienceLevel,
           sport: normalizedSport,
@@ -301,8 +296,9 @@ router.post('/plans/custom', authenticateToken, async (req: AuthRequest, res: Re
   try {
     const userId = req.userId!;
     const { name, goal, daysPerWeek, workouts: workoutDays } = req.body;
+    const normalizedGoal = normalizePublicGoal(goal);
 
-    if (!name || !goal || !daysPerWeek || !workoutDays?.length) {
+    if (!name || !normalizedGoal || !daysPerWeek || !workoutDays?.length) {
       return res.status(400).json({ error: 'name, goal, daysPerWeek, and workouts are required' });
     }
 
@@ -314,7 +310,7 @@ router.post('/plans/custom', authenticateToken, async (req: AuthRequest, res: Re
       data: {
         userId,
         name,
-        goal,
+        goal: normalizedGoal,
         daysPerWeek,
         isCustom: true,
       }
@@ -380,10 +376,15 @@ router.put('/plans/:id', authenticateToken, async (req: AuthRequest, res: Respon
     const { id } = req.params;
     const userId = req.userId!;
     const { name, goal, daysPerWeek, workouts: workoutDays } = req.body;
+    const normalizedGoal = goal === undefined ? undefined : normalizePublicGoal(goal);
 
     const plan = await prisma.workoutPlan.findFirst({ where: { id, userId } });
     if (!plan) {
       return res.status(404).json({ error: 'Workout plan not found' });
+    }
+
+    if (goal !== undefined && !normalizedGoal) {
+      return res.status(400).json({ error: 'Invalid goal selected' });
     }
 
     const dbExercises = await prisma.exercise.findMany({ select: { id: true, name: true } });
@@ -394,11 +395,11 @@ router.put('/plans/:id', authenticateToken, async (req: AuthRequest, res: Respon
 
     await prisma.workoutPlan.update({
       where: { id },
-      data: {
-        name: name || plan.name,
-        goal: goal || plan.goal,
-        daysPerWeek: daysPerWeek || plan.daysPerWeek,
-      }
+        data: {
+          name: name || plan.name,
+          goal: normalizedGoal ?? plan.goal,
+          daysPerWeek: daysPerWeek || plan.daysPerWeek,
+        }
     });
 
     if (workoutDays?.length) {

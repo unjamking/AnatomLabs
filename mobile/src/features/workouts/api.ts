@@ -57,6 +57,7 @@ export async function saveWorkoutSession(sessionData: {
   exercises: Array<{
     exerciseName: string;
     muscleGroup: string;
+    targetMuscles?: string[];
     sets: any[];
     totalVolume: number;
     maxWeight: number;

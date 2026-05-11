@@ -1,11 +1,82 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { ApiError } from '../types';
 
 const PRODUCTION_API_URL = 'https://anatomlabs.onrender.com/api';
+const LOCAL_API_PORT = '3001';
+
+const normalizeApiUrl = (value: string): string => {
+  const trimmed = value.trim().replace(/\/+$/, '');
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+};
+
+const isLocalHost = (value: string): boolean =>
+  value === 'localhost' ||
+  value === '127.0.0.1' ||
+  /^\d{1,3}(?:\.\d{1,3}){3}$/.test(value);
+
+const extractHost = (value: string): string | null => {
+  const stripped = value
+    .trim()
+    .replace(/^[a-z]+:\/\//i, '')
+    .split(/[/?#]/)[0]
+    .split(':')[0];
+
+  return isLocalHost(stripped) ? stripped : null;
+};
+
+const getExpoDebuggerHosts = (): string[] => {
+  const expoConstants = Constants as Constants & {
+    expoConfig?: { hostUri?: string; extra?: Record<string, unknown> };
+    manifest?: { debuggerHost?: string };
+    manifest2?: { extra?: { expoGo?: { debuggerHost?: string } } };
+  };
+
+  return [
+    expoConstants.expoConfig?.hostUri,
+    expoConstants.manifest2?.extra?.expoGo?.debuggerHost,
+    expoConstants.manifest?.debuggerHost,
+  ].filter((value): value is string => typeof value === 'string' && value.length > 0);
+};
+
+const getDevApiUrl = (): string | null => {
+  if (Platform.OS === 'web') {
+    return `http://localhost:${LOCAL_API_PORT}/api`;
+  }
+
+  for (const candidate of getExpoDebuggerHosts()) {
+    const host = extractHost(candidate);
+    if (host) {
+      return `http://${host}:${LOCAL_API_PORT}/api`;
+    }
+  }
+
+  if (Platform.OS === 'ios') {
+    return `http://127.0.0.1:${LOCAL_API_PORT}/api`;
+  }
+
+  if (Platform.OS === 'android') {
+    return `http://10.0.2.2:${LOCAL_API_PORT}/api`;
+  }
+
+  return null;
+};
 
 const getApiUrl = () => {
+  const explicitApiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (explicitApiUrl) {
+    return normalizeApiUrl(explicitApiUrl);
+  }
+
+  if (__DEV__) {
+    const localApiUrl = getDevApiUrl();
+    if (localApiUrl) {
+      return localApiUrl;
+    }
+  }
+
   return PRODUCTION_API_URL;
 };
 
